@@ -253,7 +253,6 @@ public class KingerLol implements ClientModInitializer {
         if (target == null) return;
 
         int blockSlot = -1;
-        String blockToPlace = AUTO_WEB.on ? "web" : "obsidian";
         Item itemToFind = AUTO_WEB.on ? Items.COBWEB : Items.OBSIDIAN;
         
         for (int i = 0; i < 9; i++) {
@@ -284,7 +283,7 @@ public class KingerLol implements ClientModInitializer {
         for (Entity e : mc.world.getEntities()) {
             if (e instanceof EndCrystalEntity c) {
                 if (p.distanceTo(c) < 4.5) {
-                    lookAt(p, c.getPos());
+                    lookAt(p, new Vec3d(c.getX(), c.getY(), c.getZ())); // Fixed here
                     mc.interactionManager.attackEntity(p, c);
                     p.swingHand(Hand.MAIN_HAND);
                     auraCooldown = 3;
@@ -386,7 +385,7 @@ public class KingerLol implements ClientModInitializer {
         if (target == null) return;
         
         Vec3d eye = p.getEyePos();
-        Vec3d tPos = target.getPos().add(0, target.getHeight() * 0.6, 0);
+        Vec3d tPos = new Vec3d(target.getX(), target.getY() + target.getHeight() * 0.6, target.getZ()); // Fixed here
         double dist = eye.distanceTo(tPos);
         Vec3d tv = target.getVelocity();
         double time = dist / 3.0;
@@ -669,4 +668,4 @@ public class KingerLol implements ClientModInitializer {
         }
         p.sendMessage(Text.literal("Kinger v elte | Chests found: " + found.size()), false);
     }
-                    }
+    }
