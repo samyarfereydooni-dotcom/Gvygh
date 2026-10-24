@@ -50,7 +50,7 @@ import java.util.function.Supplier;
 
 public class KingerLol implements ClientModInitializer {
 
-    public static final String NAME = "Kinger v elte";
+    public static final String NAME = "Kinger 2000.313";
     public static final String VERSION = "v8.2 Diamond";
 
     enum Cat {
@@ -201,13 +201,11 @@ public class KingerLol implements ClientModInitializer {
         scaffold(mc, p);
         noFall(mc, p);
         
-        // Diamond SMP Specific
         if (HOLE_ESP.on) holeEsp(mc, p);
         if (AUTO_TRAP.on || AUTO_WEB.on) autoTrap(mc, p);
         if (CRYSTAL_AURA.on) crystalAura(mc, p);
     }
 
-    // --- DIAMOND SMP FEATURES ---
     private static void holeEsp(MinecraftClient mc, ClientPlayerEntity p) {
         BlockPos base = p.getBlockPos();
         for (int dx = -5; dx <= 5; dx++) {
@@ -283,7 +281,7 @@ public class KingerLol implements ClientModInitializer {
         for (Entity e : mc.world.getEntities()) {
             if (e instanceof EndCrystalEntity c) {
                 if (p.distanceTo(c) < 4.5) {
-                    lookAt(p, new Vec3d(c.getX(), c.getY(), c.getZ())); // Fixed here
+                    lookAt(p, new Vec3d(c.getX(), c.getY(), c.getZ()));
                     mc.interactionManager.attackEntity(p, c);
                     p.swingHand(Hand.MAIN_HAND);
                     auraCooldown = 3;
@@ -293,7 +291,6 @@ public class KingerLol implements ClientModInitializer {
         }
     }
 
-    // --- SWORD ---
     private static void killAura(MinecraftClient mc, ClientPlayerEntity p) {
         if (!KILLAURA.on || mc.currentScreen != null) { auraCooldown = 0; return; }
         if (auraCooldown > 0) { auraCooldown--; return; }
@@ -368,7 +365,6 @@ public class KingerLol implements ClientModInitializer {
         }
     }
 
-    // --- BOW ---
     private static void bowAimbot(MinecraftClient mc, ClientPlayerEntity p) {
         if (mc.currentScreen != null) return;
         if (!p.isUsingItem()) return;
@@ -385,7 +381,7 @@ public class KingerLol implements ClientModInitializer {
         if (target == null) return;
         
         Vec3d eye = p.getEyePos();
-        Vec3d tPos = new Vec3d(target.getX(), target.getY() + target.getHeight() * 0.6, target.getZ()); // Fixed here
+        Vec3d tPos = new Vec3d(target.getX(), target.getY() + target.getHeight() * 0.6, target.getZ());
         double dist = eye.distanceTo(tPos);
         Vec3d tv = target.getVelocity();
         double time = dist / 3.0;
@@ -403,7 +399,6 @@ public class KingerLol implements ClientModInitializer {
         }
     }
 
-    // --- GENERAL ---
     private static void autoTotem(MinecraftClient mc, ClientPlayerEntity p) {
         if (totemCooldown > 0) { totemCooldown--; return; }
         if (p.currentScreenHandler != p.playerScreenHandler || p.getOffHandStack().isOf(Items.TOTEM_OF_UNDYING)) return;
@@ -464,7 +459,6 @@ public class KingerLol implements ClientModInitializer {
         }
     }
 
-    // --- MOVEMENT ---
     private static void scaffold(MinecraftClient mc, ClientPlayerEntity p) {
         if (!SCAFFOLD.on || mc.currentScreen != null || p.isOnGround() || p.getVelocity().y > 0) return;
         int blockSlot = -1;
@@ -511,7 +505,6 @@ public class KingerLol implements ClientModInitializer {
         p.setPitch((float) -Math.toDegrees(Math.atan2(dy, flat)));
     }
 
-    // --- HUD ---
     private static void renderHud(DrawContext ctx, RenderTickCounter tickCounter) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.player == null || mc.options.hudHidden || mc.currentScreen instanceof Menu) return;
@@ -535,7 +528,6 @@ public class KingerLol implements ClientModInitializer {
         }
     }
 
-    // --- MENU ---
     enum Kind { TAB, TOGGLE, ACTION, STEP, VALUE }
     record Widget(int x, int y, int w, int h, String label, Kind kind, BooleanSupplier active, String desc, Supplier<String> tag) {}
 
@@ -666,6 +658,6 @@ public class KingerLol implements ClientModInitializer {
                 if (be instanceof ChestBlockEntity) found.add(pos.toImmutable());
             }
         }
-        p.sendMessage(Text.literal("Kinger v elte | Chests found: " + found.size()), false);
+        p.sendMessage(Text.literal("Kinger | Chests found: " + found.size()), false);
     }
     }
