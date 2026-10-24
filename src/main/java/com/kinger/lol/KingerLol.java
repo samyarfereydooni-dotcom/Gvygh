@@ -1,6 +1,5 @@
 package com.kinger.lol;
 
-import com.mojang.brigadier.CommandDispatcher;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -114,15 +113,17 @@ public class KingerLol implements ClientModInitializer {
     public void onInitializeClient() {
         load();
         
-        // ثبت کیبورد استاندارد
+        // تعریف دسته‌بندی کیبورد
+        KeyBinding.Category category = KeyBinding.Category.create(Identifier.of("kingerlol", "main"));
+        
         guiKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "KingerLol Menu", 
                 InputUtil.Type.KEYSYM, 
                 GLFW.GLFW_KEY_RIGHT_SHIFT, 
-                "KingerLol"
+                category
         ));
         
-        // ثبت دستور /kingerlol برای اندروید
+        // ثبت دستور /kingerlol
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             dispatcher.register(ClientCommandManager.literal("kingerlol")
                 .executes(context -> {
@@ -175,7 +176,6 @@ public class KingerLol implements ClientModInitializer {
         noFall(mc, p);
     }
 
-    // --- LOGIC FUNCTIONS ---
     private static void killAura(MinecraftClient mc, ClientPlayerEntity p) {
         if (!KILLAURA.on || mc.currentScreen != null) { auraCooldown = 0; return; }
         if (auraCooldown > 0) { auraCooldown--; return; }
@@ -292,7 +292,6 @@ public class KingerLol implements ClientModInitializer {
         p.setPitch((float) -Math.toDegrees(Math.atan2(dy, flat)));
     }
 
-    // --- HUD ---
     private static void renderHud(DrawContext ctx, RenderTickCounter tickCounter) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.player == null || mc.options.hudHidden || mc.currentScreen instanceof Menu) return;
@@ -313,7 +312,6 @@ public class KingerLol implements ClientModInitializer {
         }
     }
 
-    // --- VAPE V4 STYLE MENU ---
     enum Kind { TAB, TOGGLE, ACTION, STEP, VALUE }
     record Widget(int x, int y, int w, int h, String label, Kind kind, BooleanSupplier active, String desc, Supplier<String> tag) {}
 
@@ -446,4 +444,4 @@ public class KingerLol implements ClientModInitializer {
         }
         p.sendMessage(Text.literal(NAME + " | Chests found: " + found.size()), false);
     }
-                                                          }
+    }
