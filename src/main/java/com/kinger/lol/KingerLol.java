@@ -44,11 +44,20 @@ import java.util.function.Supplier;
 
 public class KingerLol implements ClientModInitializer {
 
-    public static final String NAME = "KingerLol GodMode";
-    public static final String VERSION = "v7.0";
+    public static final String NAME = "KingerLol";
+    public static final String VERSION = "v8.0 Vape";
 
     enum Cat {
-        COMBAT("Combat"), MOVEMENT("Movement"), RENDER("Render"), EXPLOIT("Exploit"), HUD("HUD");
+        SMP("SMP"), 
+        SWORD("Sword"), 
+        BOW("Bow"), 
+        CRYSTAL("Crystal"), 
+        ANCHOR("Anchor"), 
+        MACE("Mace"), 
+        GENERAL("General"), 
+        MOVEMENT("Movement"), 
+        RENDER("Render"), 
+        HUD("HUD");
         final String label;
         Cat(String label) { this.label = label; }
     }
@@ -70,30 +79,31 @@ public class KingerLol implements ClientModInitializer {
         void change(int dir) { value = Math.max(min, Math.min(max, value + dir * step)); }
     }
 
-    static final Mod KILLAURA = new Mod("Kill Aura", "Auto attacks entities", Cat.COMBAT, false, false);
-    static final Mod SILENT_AIM = new Mod("Silent Aim", "Attacks without looking", Cat.COMBAT, true, false);
-    static final Mod VELOCITY = new Mod("Velocity", "Reduces knockback", Cat.COMBAT, true, false);
-    static final Mod CRITICALS = new Mod("Criticals", "Always crit", Cat.COMBAT, true, false);
-    static final Mod AUTO_TOTEM = new Mod("Auto Totem", "Offhand totem", Cat.COMBAT, true, false);
-    static final Mod AUTO_ARMOR = new Mod("Auto Armor", "Best armor", Cat.COMBAT, true, false);
+    // --- CATEGORIES MODULES ---
+    static final Mod STORAGE = new Mod("Storage Finder", "Finds chests", Cat.SMP, false, true);
+    static final Mod PLAYER_ESP = new Mod("Player ESP", "Glow players", Cat.SMP, true, false);
+    static final Mod FULLBRIGHT = new Mod("Fullbright", "See in dark", Cat.SMP, true, false);
+    
+    static final Mod KILLAURA = new Mod("Kill Aura", "Auto attacks entities", Cat.SWORD, false, false);
+    static final Mod SILENT_AIM = new Mod("Silent Aim", "Attacks without looking", Cat.SWORD, true, false);
+    static final Mod CRITICALS = new Mod("Criticals", "Always crit", Cat.SWORD, true, false);
+    static final Mod VELOCITY = new Mod("Velocity", "Reduces knockback", Cat.SWORD, true, false);
+    
+    static final Mod AUTO_TOTEM = new Mod("Auto Totem", "Offhand totem", Cat.GENERAL, true, false);
+    static final Mod AUTO_ARMOR = new Mod("Auto Armor", "Best armor", Cat.GENERAL, true, false);
     
     static final Mod SCAFFOLD = new Mod("Scaffold", "Auto bridge", Cat.MOVEMENT, false, false);
     static final Mod SPRINT = new Mod("Auto Sprint", "Always sprint", Cat.MOVEMENT, true, false);
     static final Mod NOFALL = new Mod("No Fall", "No fall damage", Cat.MOVEMENT, true, false);
     
-    static final Mod FULLBRIGHT = new Mod("Fullbright", "See in dark", Cat.RENDER, true, false);
-    static final Mod PLAYER_ESP = new Mod("Player ESP", "Glow players", Cat.RENDER, true, false);
-    
-    static final Mod STORAGE = new Mod("Storage Finder", "Finds chests", Cat.EXPLOIT, false, true);
-
     static final Mod WATERMARK = new Mod("Watermark", "Shows client", Cat.HUD, true, false);
     static final Mod ARRAYLIST = new Mod("ArrayList", "Active modules", Cat.HUD, true, false);
 
-    static final Num AURA_RANGE = new Num("Aura Range", "Attack distance", Cat.COMBAT, 4.5, 3.0, 6.0, 0.5);
-    static final Num REACH = new Num("Reach", "Reach distance", Cat.COMBAT, 4.5, 3.0, 6.0, 0.5);
+    static final Num AURA_RANGE = new Num("Aura Range", "Attack distance", Cat.SWORD, 4.5, 3.0, 6.0, 0.5);
+    static final Num REACH = new Num("Reach", "Reach distance", Cat.SWORD, 4.5, 3.0, 6.0, 0.5);
 
     private static KeyBinding guiKey;
-    static Cat lastTab = Cat.COMBAT;
+    static Cat lastTab = Cat.SWORD; // Default tab
     private static int totemCooldown = 0, armorCooldown = 0, auraCooldown = 0;
     private static float lastHealth = 20f;
 
@@ -101,8 +111,13 @@ public class KingerLol implements ClientModInitializer {
     public void onInitializeClient() {
         load();
         
-        KeyBinding.Category category = KeyBinding.Category.create(Identifier.of("kingerlol", "main"));
-        guiKey = KeyBindingHelper.registerKeyBinding(new KeyBinding("KingerLol Menu", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT_SHIFT, category));
+        // دکمه منو روی Numpad 5 تنظیم شد
+        guiKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "KingerLol Menu", 
+                InputUtil.Type.KEYSYM, 
+                GLFW.GLFW_KEY_KP_5, 
+                KeyBinding.Category.MISC
+        ));
         
         ClientTickEvents.END_CLIENT_TICK.register(KingerLol::tick);
         HudRenderCallback.EVENT.register(KingerLol::renderHud);
@@ -146,6 +161,7 @@ public class KingerLol implements ClientModInitializer {
         noFall(mc, p);
     }
 
+    // --- LOGIC FUNCTIONS ---
     private static void killAura(MinecraftClient mc, ClientPlayerEntity p) {
         if (!KILLAURA.on || mc.currentScreen != null) { auraCooldown = 0; return; }
         if (auraCooldown > 0) { auraCooldown--; return; }
@@ -262,13 +278,14 @@ public class KingerLol implements ClientModInitializer {
         p.setPitch((float) -Math.toDegrees(Math.atan2(dy, flat)));
     }
 
+    // --- HUD ---
     private static void renderHud(DrawContext ctx, RenderTickCounter tickCounter) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.player == null || mc.options.hudHidden || mc.currentScreen instanceof Menu) return;
         TextRenderer tr = mc.textRenderer;
         int y = 4;
         if (WATERMARK.on) {
-            ctx.drawTextWithShadow(tr, NAME + " " + VERSION, 4, y, 0xFF00FFFF); y += 12;
+            ctx.drawTextWithShadow(tr, NAME + " §7" + VERSION, 4, y, 0xFF00E5FF); y += 12;
         }
         if (ARRAYLIST.on) {
             int sw = ctx.getScaledWindowWidth();
@@ -276,21 +293,31 @@ public class KingerLol implements ClientModInitializer {
             for (Mod m : MODS) if (m.on && !m.action && m.cat != Cat.HUD) active.add(m);
             active.sort(Comparator.comparingInt((Mod m) -> -tr.getWidth(m.name)));
             for (Mod m : active) {
-                ctx.drawTextWithShadow(tr, m.name, sw - tr.getWidth(m.name) - 4, y, 0xFF55FF55);
+                ctx.drawTextWithShadow(tr, m.name, sw - tr.getWidth(m.name) - 4, y, 0xFF00E5FF);
                 y += 11;
             }
         }
     }
 
+    // --- VAPE V4 STYLE MENU ---
     enum Kind { TAB, TOGGLE, ACTION, STEP, VALUE }
     record Widget(int x, int y, int w, int h, String label, Kind kind, BooleanSupplier active, String desc, Supplier<String> tag) {}
 
     static class Menu extends Screen {
-        static final int PW = 460, PH = 350;
+        static final int PW = 480, PH = 320;
         private final List<Widget> widgets = new ArrayList<>();
+        
+        // Vape Colors
+        final int BG_COLOR = 0xFF18181A;
+        final int PANEL_COLOR = 0xFF222224;
+        final int ACCENT = 0xFF00E5FF; // Neon Cyan
+        final int TEXT_COLOR = 0xFFEEEEEE;
+        final int TEXT_DARK = 0xFF888888;
+
         Menu() { super(Text.literal(NAME)); }
         private int px() { return (this.width - PW) / 2; }
         private int py() { return (this.height - PH) / 2; }
+        
         private void hit(int x, int y, int w, int h, Runnable action) {
             addDrawableChild(ButtonWidget.builder(Text.empty(), b -> action.run()).dimensions(x, y, w, h).build());
         }
@@ -298,58 +325,116 @@ public class KingerLol implements ClientModInitializer {
         @Override protected void init() {
             widgets.clear();
             int px = px(), py = py();
-            int sx = px + 8, sy = py + 42, i = 0;
+            
+            // Sidebar (Categories)
+            int sx = px + 10, sy = py + 40, i = 0;
             for (Cat c : Cat.values()) {
-                final Cat cc = c; int ty = sy + i * 28;
-                hit(sx, ty, 100, 24, () -> { lastTab = cc; save(); clearAndInit(); });
-                widgets.add(new Widget(sx, ty, 100, 24, c.label, Kind.TAB, () -> lastTab == cc, null, null));
+                final Cat cc = c; int ty = sy + i * 24;
+                hit(sx, ty, 100, 22, () -> { lastTab = cc; save(); clearAndInit(); });
+                widgets.add(new Widget(sx, ty, 100, 22, c.label, Kind.TAB, () -> lastTab == cc, null, null));
                 i++;
             }
-            int cx = px + 116, cy = py + 42, col = 0, row = 0;
+
+            // Content (Modules & Sliders)
+            int cx = px + 125, cy = py + 40, col = 0, row = 0;
             for (Mod m : MODS) {
                 if (m.cat != lastTab) continue;
-                int mx = cx + col * 172, my = cy + row * 30;
-                hit(mx, my, 168, 26, () -> {
-                    if (m.action) { if (m == STORAGE) { close(); findStorage(this.client); } } else { m.on = !m.on; save(); }
+                int mx = cx + col * 175, my = cy + row * 26;
+                hit(mx, my, 170, 22, () -> {
+                    if (m.action) { if (m == STORAGE) { close(); findStorage(this.client); } } 
+                    else { m.on = !m.on; save(); }
                 });
-                widgets.add(new Widget(mx, my, 168, 26, m.name, m.action ? Kind.ACTION : Kind.TOGGLE, () -> m.on, m.desc, m.action ? () -> "RUN" : null));
+                widgets.add(new Widget(mx, my, 170, 22, m.name, m.action ? Kind.ACTION : Kind.TOGGLE, () -> m.on, m.desc, null));
                 col++; if (col == 2) { col = 0; row++; }
             }
             if (col == 1) row++;
+            
+            // Sliders (Nums)
             for (Num n : NUMS) {
                 if (n.cat != lastTab) continue;
-                int ny = cy + row * 30;
-                widgets.add(new Widget(cx, ny, 250, 26, n.name, Kind.VALUE, () -> false, n.desc, () -> String.valueOf(n.value)));
-                hit(cx + 254, ny, 22, 26, () -> { n.change(-1); save(); });
-                widgets.add(new Widget(cx + 254, ny, 22, 26, "-", Kind.STEP, () -> false, null, null));
-                hit(cx + 278, ny, 22, 26, () -> { n.change(1); save(); });
-                widgets.add(new Widget(cx + 278, ny, 22, 26, "+", Kind.STEP, () -> false, null, null));
+                int ny = cy + row * 28;
+                widgets.add(new Widget(cx, ny, 250, 20, n.name, Kind.VALUE, () -> false, n.desc, () -> String.valueOf(n.value)));
+                // - Button
+                hit(cx + 255, ny, 20, 20, () -> { n.change(-1); save(); });
+                widgets.add(new Widget(cx + 255, ny, 20, 20, "-", Kind.STEP, () -> false, null, null));
+                // + Button
+                hit(cx + 278, ny, 20, 20, () -> { n.change(1); save(); });
+                widgets.add(new Widget(cx + 278, ny, 20, 20, "+", Kind.STEP, () -> false, null, null));
                 row++;
             }
         }
 
         @Override public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
-            ctx.fill(0, 0, this.width, this.height, 0xA0000000);
+            // Dim background
+            ctx.fill(0, 0, this.width, this.height, 0x66000000);
+            
             int px = px(), py = py();
-            ctx.fill(px, py, px + PW, py + PH, 0xFF101018);
-            ctx.fill(px, py, px + PW, py + 32, 0xFF1A1A26);
+            
+            // Main Panel
+            ctx.fill(px, py, px + PW, py + PH, BG_COLOR);
+            
+            // Sidebar panel
+            ctx.fill(px, py, px + 120, py + PH, PANEL_COLOR);
+            
+            // Top Header
+            ctx.fill(px, py, px + PW, py + 30, 0xFF111113);
+            ctx.fill(px, py + 30, px + PW, py + 31, ACCENT); // Accent line
         }
 
         @Override public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
             super.render(ctx, mouseX, mouseY, delta);
             TextRenderer tr = this.textRenderer;
             int px = px(), py = py();
-            ctx.drawTextWithShadow(tr, NAME + " " + VERSION, px + 12, py + 12, 0xFF00FFFF);
+            
+            // Title
+            ctx.drawTextWithShadow(tr, NAME, px + 10, py + 10, ACCENT);
+            ctx.drawTextWithShadow(tr, VERSION, px + PW - tr.getWidth(VERSION) - 10, py + 10, TEXT_DARK);
+
             for (Widget w : widgets) {
                 boolean hov = mouseX >= w.x() && mouseX < w.x() + w.w() && mouseY >= w.y() && mouseY < w.y() + w.h();
                 boolean on = w.active().getAsBoolean();
-                int bg = on && (w.kind() == Kind.TOGGLE || w.kind() == Kind.TAB) ? 0xFF2E2E3E : (hov ? 0xFF333344 : 0xFF23232E);
-                ctx.fill(w.x(), w.y(), w.x() + w.w(), w.y() + w.h(), bg);
-                int ty = w.y() + (w.h() - 8) / 2;
-                ctx.drawTextWithShadow(tr, w.label(), w.x() + 8, ty, on ? 0xFF55FF55 : 0xFFBBBBCC);
-                if (w.tag() != null) {
-                    String tag = w.tag().get();
-                    ctx.drawTextWithShadow(tr, tag, w.x() + w.w() - tr.getWidth(tag) - 8, ty, on ? 0xFF55FF55 : 0xFFFF5566);
+                
+                // Draw Widget Background
+                if (w.kind() == Kind.TAB) {
+                    if (on) {
+                        ctx.fill(w.x(), w.y(), w.x() + w.w(), w.y() + w.h(), 0xFF2A2A2D);
+                        ctx.fill(w.x(), w.y(), w.x() + 3, w.y() + w.h(), ACCENT); // Left accent line
+                    } else if (hov) {
+                        ctx.fill(w.x(), w.y(), w.x() + w.w(), w.y() + w.h(), 0xFF2A2A2D);
+                    }
+                    ctx.drawTextWithShadow(tr, w.label(), w.x() + 10, w.y() + (w.h() - 8) / 2, on ? ACCENT : TEXT_COLOR);
+                } 
+                else if (w.kind() == Kind.TOGGLE) {
+                    // Vape Toggle style
+                    int bgColor = on ? ACCENT : 0xFF333333;
+                    if (hov) bgColor = on ? 0xFF33FFFF : 0xFF444444;
+                    
+                    // Text
+                    ctx.drawTextWithShadow(tr, w.label(), w.x() + 5, w.y() + (w.h() - 8) / 2, on ? 0xFFFFFFFF : TEXT_DARK);
+                    
+                    // Toggle Switch
+                    int toggleX = w.x() + w.w() - 28;
+                    int toggleY = w.y() + 5;
+                    // Draw track
+                    ctx.fill(toggleX, toggleY, toggleX + 22, toggleY + 12, bgColor);
+                    // Draw circle
+                    int circleX = on ? toggleX + 12 : toggleX + 2;
+                    ctx.fill(circleX, toggleY + 2, circleX + 8, toggleY + 10, 0xFFFFFFFF);
+                }
+                else if (w.kind() == Kind.VALUE) {
+                    ctx.drawTextWithShadow(tr, w.label(), w.x(), w.y() + 6, TEXT_COLOR);
+                    ctx.drawTextWithShadow(tr, w.tag().get(), w.x() + w.w() - tr.getWidth(w.tag().get()), w.y() + 6, ACCENT);
+                }
+                else if (w.kind() == Kind.STEP) {
+                    int bg = hov ? 0xFF333333 : 0xFF222222;
+                    ctx.fill(w.x(), w.y(), w.x() + w.w(), w.y() + w.h(), bg);
+                    int tw = tr.getWidth(w.label());
+                    ctx.drawTextWithShadow(tr, w.label(), w.x() + (w.w() - tw) / 2, w.y() + (w.h() - 8) / 2, TEXT_COLOR);
+                }
+                else if (w.kind() == Kind.ACTION) {
+                    int bg = hov ? 0xFF2A2A2D : PANEL_COLOR;
+                    ctx.fill(w.x(), w.y(), w.x() + w.w(), w.y() + w.h(), bg);
+                    ctx.drawTextWithShadow(tr, w.label(), w.x() + 5, w.y() + (w.h() - 8) / 2, TEXT_COLOR);
                 }
             }
         }
@@ -370,4 +455,4 @@ public class KingerLol implements ClientModInitializer {
         }
         p.sendMessage(Text.literal(NAME + " | Chests found: " + found.size()), false);
     }
-                    }
+            }
