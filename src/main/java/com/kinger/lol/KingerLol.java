@@ -7,6 +7,8 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.ChestBlockEntity;
 import net.minecraft.client.MinecraftClient;
@@ -20,7 +22,9 @@ import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.EquippableComponent;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.decoration.EndCrystalEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.player.PlayerEntity;
@@ -46,16 +50,15 @@ import java.util.function.Supplier;
 
 public class KingerLol implements ClientModInitializer {
 
-    public static final String NAME = "KingerLol";
-    public static final String VERSION = "v8.0 Vape";
+    public static final String NAME = "Kinger v elte";
+    public static final String VERSION = "v8.2 Diamond";
 
     enum Cat {
         SMP("SMP"), 
+        DIAMOND("Diamond"), 
         SWORD("Sword"), 
         BOW("Bow"), 
         CRYSTAL("Crystal"), 
-        ANCHOR("Anchor"), 
-        MACE("Mace"), 
         GENERAL("General"), 
         MOVEMENT("Movement"), 
         RENDER("Render"), 
@@ -81,23 +84,43 @@ public class KingerLol implements ClientModInitializer {
         void change(int dir) { value = Math.max(min, Math.min(max, value + dir * step)); }
     }
 
-    // --- CATEGORIES MODULES ---
+    // --- SMP ---
     static final Mod STORAGE = new Mod("Storage Finder", "Finds chests", Cat.SMP, false, true);
     static final Mod PLAYER_ESP = new Mod("Player ESP", "Glow players", Cat.SMP, true, false);
     static final Mod FULLBRIGHT = new Mod("Fullbright", "See in dark", Cat.SMP, true, false);
     
-    static final Mod KILLAURA = new Mod("Kill Aura", "Auto attacks entities", Cat.SWORD, false, false);
+    // --- DIAMOND SMP SPECIFIC ---
+    static final Mod HOLE_ESP = new Mod("Hole ESP", "Finds safe holes", Cat.DIAMOND, true, false);
+    static final Mod AUTO_TRAP = new Mod("Auto Trap", "Traps target in obsidian", Cat.DIAMOND, false, false);
+    static final Mod AUTO_WEB = new Mod("Auto Web", "Places cobweb on target", Cat.DIAMOND, false, false);
+    static final Mod FAST_PLACE = new Mod("Fast Place", "No right click delay", Cat.DIAMOND, true, false);
+    
+    // --- SWORD ---
+    static final Mod KILLAURA = new Mod("Kill Aura", "Silent attacks entities", Cat.SWORD, false, false);
     static final Mod SILENT_AIM = new Mod("Silent Aim", "Attacks without looking", Cat.SWORD, true, false);
     static final Mod CRITICALS = new Mod("Criticals", "Always crit", Cat.SWORD, true, false);
     static final Mod VELOCITY = new Mod("Velocity", "Reduces knockback", Cat.SWORD, true, false);
+    static final Mod AUTO_SWORD = new Mod("Auto Sword", "Switches to best sword", Cat.SWORD, true, false);
     
+    // --- BOW ---
+    static final Mod BOW_AIMBOT = new Mod("Bow Aimbot", "Auto aims bow at target", Cat.BOW, true, false);
+    static final Mod AUTO_BOW = new Mod("Auto Bow", "Releases bow when charged", Cat.BOW, true, false);
+    
+    // --- CRYSTAL ---
+    static final Mod CRYSTAL_AURA = new Mod("Crystal Aura", "Attacks nearby crystals", Cat.CRYSTAL, false, false);
+    
+    // --- GENERAL ---
     static final Mod AUTO_TOTEM = new Mod("Auto Totem", "Offhand totem", Cat.GENERAL, true, false);
     static final Mod AUTO_ARMOR = new Mod("Auto Armor", "Best armor", Cat.GENERAL, true, false);
+    static final Mod AUTO_POT = new Mod("Auto Pot", "Drinks potions", Cat.GENERAL, false, false);
+    static final Mod AUTO_GAPPLE = new Mod("Auto Gapple", "Eats gapple", Cat.GENERAL, false, false);
     
+    // --- MOVEMENT ---
     static final Mod SCAFFOLD = new Mod("Scaffold", "Auto bridge", Cat.MOVEMENT, false, false);
     static final Mod SPRINT = new Mod("Auto Sprint", "Always sprint", Cat.MOVEMENT, true, false);
     static final Mod NOFALL = new Mod("No Fall", "No fall damage", Cat.MOVEMENT, true, false);
     
+    // --- HUD ---
     static final Mod WATERMARK = new Mod("Watermark", "Shows client", Cat.HUD, true, false);
     static final Mod ARRAYLIST = new Mod("ArrayList", "Active modules", Cat.HUD, true, false);
 
@@ -105,25 +128,22 @@ public class KingerLol implements ClientModInitializer {
     static final Num REACH = new Num("Reach", "Reach distance", Cat.SWORD, 4.5, 3.0, 6.0, 0.5);
 
     private static KeyBinding guiKey;
-    static Cat lastTab = Cat.SWORD;
-    private static int totemCooldown = 0, armorCooldown = 0, auraCooldown = 0;
+    static Cat lastTab = Cat.DIAMOND;
+    private static int totemCooldown = 0, armorCooldown = 0, auraCooldown = 0, potCooldown = 0, trapCooldown = 0;
     private static float lastHealth = 20f;
 
     @Override
     public void onInitializeClient() {
         load();
         
-        // تعریف دسته‌بندی کیبورد
         KeyBinding.Category category = KeyBinding.Category.create(Identifier.of("kingerlol", "main"));
-        
         guiKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "KingerLol Menu", 
                 InputUtil.Type.KEYSYM, 
-                GLFW.GLFW_KEY_RIGHT_SHIFT, 
+                GLFW.GLFW_KEY_KP_5, 
                 category
         ));
         
-        // ثبت دستور /kingerlol
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             dispatcher.register(ClientCommandManager.literal("kingerlol")
                 .executes(context -> {
@@ -165,17 +185,116 @@ public class KingerLol implements ClientModInitializer {
 
         if (AUTO_TOTEM.on) autoTotem(mc, p);
         if (AUTO_ARMOR.on) autoArmor(mc, p);
-        if (SPRINT.on && mc.options.forwardKey.isPressed() && !p.isSneaking()) mc.options.sprintKey.setPressed(true);
+        if (AUTO_POT.on) autoPot(mc, p);
+        if (AUTO_GAPPLE.on) autoGapple(mc, p);
         
+        if (SPRINT.on && mc.options.forwardKey.isPressed() && !p.isSneaking()) mc.options.sprintKey.setPressed(true);
         if (FULLBRIGHT.on) fullbright(p);
         if (PLAYER_ESP.on) playerEsp(mc);
+        
+        if (AUTO_SWORD.on) autoSword(mc, p);
+        if (BOW_AIMBOT.on) bowAimbot(mc, p);
+        if (AUTO_BOW.on) autoBow(mc, p);
         
         killAura(mc, p);
         velocity(mc, p);
         scaffold(mc, p);
         noFall(mc, p);
+        
+        // Diamond SMP Specific
+        if (HOLE_ESP.on) holeEsp(mc, p);
+        if (AUTO_TRAP.on || AUTO_WEB.on) autoTrap(mc, p);
+        if (CRYSTAL_AURA.on) crystalAura(mc, p);
     }
 
+    // --- DIAMOND SMP FEATURES ---
+    private static void holeEsp(MinecraftClient mc, ClientPlayerEntity p) {
+        BlockPos base = p.getBlockPos();
+        for (int dx = -5; dx <= 5; dx++) {
+            for (int dz = -5; dz <= 5; dz++) {
+                for (int dy = -3; dy <= 3; dy++) {
+                    BlockPos pos = base.add(dx, dy, dz);
+                    if (isHole(mc, pos)) {
+                        p.sendMessage(Text.literal("§b[Kinger] Hole at: " + pos.toShortString()), true);
+                    }
+                }
+            }
+        }
+    }
+
+    private static boolean isHole(MinecraftClient mc, BlockPos pos) {
+        if (!mc.world.getBlockState(pos).isAir() || !mc.world.getBlockState(pos.up()).isAir()) return false;
+        if (!mc.world.getBlockState(pos.up(2)).isAir()) return false;
+        BlockState floor = mc.world.getBlockState(pos.down());
+        if (!floor.isOf(Blocks.OBSIDIAN) && !floor.isOf(Blocks.BEDROCK)) return false;
+        int count = 0;
+        if (isSafe(mc.world.getBlockState(pos.north()))) count++;
+        if (isSafe(mc.world.getBlockState(pos.south()))) count++;
+        if (isSafe(mc.world.getBlockState(pos.east()))) count++;
+        if (isSafe(mc.world.getBlockState(pos.west()))) count++;
+        return count >= 3;
+    }
+
+    private static boolean isSafe(BlockState bs) {
+        return bs.isOf(Blocks.OBSIDIAN) || bs.isOf(Blocks.BEDROCK);
+    }
+
+    private static void autoTrap(MinecraftClient mc, ClientPlayerEntity p) {
+        if (mc.currentScreen != null) return;
+        if (trapCooldown > 0) { trapCooldown--; return; }
+        
+        PlayerEntity target = null;
+        double bestD = 5 * 5;
+        for (PlayerEntity o : mc.world.getPlayers()) {
+            if (o == p || !o.isAlive()) continue;
+            double d = p.squaredDistanceTo(o);
+            if (d < bestD) { bestD = d; target = o; }
+        }
+        if (target == null) return;
+
+        int blockSlot = -1;
+        String blockToPlace = AUTO_WEB.on ? "web" : "obsidian";
+        Item itemToFind = AUTO_WEB.on ? Items.COBWEB : Items.OBSIDIAN;
+        
+        for (int i = 0; i < 9; i++) {
+            if (p.getInventory().getStack(i).isOf(itemToFind)) { blockSlot = i; break; }
+        }
+        if (blockSlot == -1) return;
+
+        BlockPos tPos = target.getBlockPos();
+        BlockPos[] surrounds = { tPos.north(), tPos.south(), tPos.east(), tPos.west(), tPos.up(), tPos.up(2) };
+        
+        p.getInventory().setSelectedSlot(blockSlot);
+        for (BlockPos pos : surrounds) {
+            if (mc.world.getBlockState(pos).isAir()) {
+                BlockHitResult hit = new BlockHitResult(Vec3d.ofCenter(pos), Direction.UP, pos, false);
+                lookAt(p, Vec3d.ofCenter(pos));
+                mc.interactionManager.interactBlock(p, Hand.MAIN_HAND, hit);
+                p.swingHand(Hand.MAIN_HAND);
+                trapCooldown = 2;
+                break;
+            }
+        }
+    }
+
+    private static void crystalAura(MinecraftClient mc, ClientPlayerEntity p) {
+        if (mc.currentScreen != null) return;
+        if (auraCooldown > 0) { auraCooldown--; return; }
+        
+        for (Entity e : mc.world.getEntities()) {
+            if (e instanceof EndCrystalEntity c) {
+                if (p.distanceTo(c) < 4.5) {
+                    lookAt(p, c.getPos());
+                    mc.interactionManager.attackEntity(p, c);
+                    p.swingHand(Hand.MAIN_HAND);
+                    auraCooldown = 3;
+                    return;
+                }
+            }
+        }
+    }
+
+    // --- SWORD ---
     private static void killAura(MinecraftClient mc, ClientPlayerEntity p) {
         if (!KILLAURA.on || mc.currentScreen != null) { auraCooldown = 0; return; }
         if (auraCooldown > 0) { auraCooldown--; return; }
@@ -217,6 +336,75 @@ public class KingerLol implements ClientModInitializer {
         lastHealth = hp;
     }
 
+    private static int swordRank(Item item) {
+        if (item == Items.NETHERITE_SWORD) return 6;
+        if (item == Items.DIAMOND_SWORD) return 5;
+        if (item == Items.IRON_SWORD) return 4;
+        if (item == Items.STONE_SWORD) return 3;
+        if (item == Items.GOLDEN_SWORD) return 2;
+        if (item == Items.WOODEN_SWORD) return 1;
+        if (item == Items.NETHERITE_AXE) return 7;
+        if (item == Items.DIAMOND_AXE) return 4;
+        return 0;
+    }
+
+    private static void autoSword(MinecraftClient mc, ClientPlayerEntity p) {
+        if (mc.currentScreen != null || mc.options.attackKey.isPressed()) return;
+        PlayerEntity target = null;
+        double bestD = 6 * 6;
+        for (PlayerEntity o : mc.world.getPlayers()) {
+            if (o == p || !o.isAlive()) continue;
+            double d = p.squaredDistanceTo(o);
+            if (d < bestD) { bestD = d; target = o; }
+        }
+        if (target == null) return;
+        
+        int bestSlot = -1, bestRank = 0;
+        for (int i = 0; i < 9; i++) {
+            int r = swordRank(p.getInventory().getStack(i).getItem());
+            if (r > bestRank) { bestRank = r; bestSlot = i; }
+        }
+        if (bestSlot != -1 && p.getInventory().getSelectedSlot() != bestSlot) {
+            p.getInventory().setSelectedSlot(bestSlot);
+        }
+    }
+
+    // --- BOW ---
+    private static void bowAimbot(MinecraftClient mc, ClientPlayerEntity p) {
+        if (mc.currentScreen != null) return;
+        if (!p.isUsingItem()) return;
+        ItemStack active = p.getActiveItem();
+        if (!(active.isOf(Items.BOW) || active.isOf(Items.CROSSBOW))) return;
+        
+        PlayerEntity target = null;
+        double bestD = 50 * 50;
+        for (PlayerEntity o : mc.world.getPlayers()) {
+            if (o == p || !o.isAlive() || o.isSpectator()) continue;
+            double d = p.squaredDistanceTo(o);
+            if (d < bestD) { bestD = d; target = o; }
+        }
+        if (target == null) return;
+        
+        Vec3d eye = p.getEyePos();
+        Vec3d tPos = target.getPos().add(0, target.getHeight() * 0.6, 0);
+        double dist = eye.distanceTo(tPos);
+        Vec3d tv = target.getVelocity();
+        double time = dist / 3.0;
+        Vec3d predicted = tPos.add(tv.multiply(time, time, time));
+        double drop = 0.05 * time * time * 9.8;
+        lookAt(p, predicted.add(0, drop, 0));
+    }
+
+    private static void autoBow(MinecraftClient mc, ClientPlayerEntity p) {
+        if (mc.currentScreen != null) return;
+        if (!p.isUsingItem()) return;
+        if (!p.getActiveItem().isOf(Items.BOW)) return;
+        if (p.getItemUseTime() >= 20) {
+            mc.interactionManager.stopUsingItem(p);
+        }
+    }
+
+    // --- GENERAL ---
     private static void autoTotem(MinecraftClient mc, ClientPlayerEntity p) {
         if (totemCooldown > 0) { totemCooldown--; return; }
         if (p.currentScreenHandler != p.playerScreenHandler || p.getOffHandStack().isOf(Items.TOTEM_OF_UNDYING)) return;
@@ -234,8 +422,8 @@ public class KingerLol implements ClientModInitializer {
         if (p.getEquippedStack(EquipmentSlot.CHEST).isEmpty()) {
             for (int slot = 9; slot <= 44; slot++) {
                 ItemStack st = p.playerScreenHandler.getSlot(slot).getStack();
-                EquippableComponent equippable = st.get(DataComponentTypes.EQUIPPABLE);
-                if (equippable != null && equippable.slot() == EquipmentSlot.CHEST) {
+                EquippableComponent eq = st.get(DataComponentTypes.EQUIPPABLE);
+                if (eq != null && eq.slot() == EquipmentSlot.CHEST) {
                     mc.interactionManager.clickSlot(p.playerScreenHandler.syncId, slot, 0, SlotActionType.QUICK_MOVE, p);
                     armorCooldown = 10; return;
                 }
@@ -243,6 +431,41 @@ public class KingerLol implements ClientModInitializer {
         }
     }
 
+    private static void autoPot(MinecraftClient mc, ClientPlayerEntity p) {
+        if (potCooldown > 0) { potCooldown--; return; }
+        if (mc.currentScreen != null || p.isUsingItem()) return;
+        if (p.getHealth() > 14) return;
+        
+        for (int i = 0; i < 9; i++) {
+            ItemStack st = p.getInventory().getStack(i);
+            if (st.isOf(Items.SPLASH_POTION) || st.isOf(Items.POTION)) {
+                int old = p.getInventory().getSelectedSlot();
+                p.getInventory().setSelectedSlot(i);
+                mc.interactionManager.interactItem(p, Hand.MAIN_HAND);
+                p.getInventory().setSelectedSlot(old);
+                potCooldown = 40;
+                return;
+            }
+        }
+    }
+
+    private static void autoGapple(MinecraftClient mc, ClientPlayerEntity p) {
+        if (mc.currentScreen != null || p.isUsingItem()) return;
+        if (p.getHealth() > 8) return;
+        
+        for (int i = 0; i < 9; i++) {
+            ItemStack st = p.getInventory().getStack(i);
+            if (st.isOf(Items.ENCHANTED_GOLDEN_APPLE) || st.isOf(Items.GOLDEN_APPLE)) {
+                int old = p.getInventory().getSelectedSlot();
+                p.getInventory().setSelectedSlot(i);
+                mc.interactionManager.interactItem(p, Hand.MAIN_HAND);
+                p.getInventory().setSelectedSlot(old);
+                return;
+            }
+        }
+    }
+
+    // --- MOVEMENT ---
     private static void scaffold(MinecraftClient mc, ClientPlayerEntity p) {
         if (!SCAFFOLD.on || mc.currentScreen != null || p.isOnGround() || p.getVelocity().y > 0) return;
         int blockSlot = -1;
@@ -252,7 +475,6 @@ public class KingerLol implements ClientModInitializer {
         if (blockSlot == -1) return;
         
         p.getInventory().setSelectedSlot(blockSlot);
-        
         BlockPos under = p.getBlockPos().down();
         if (mc.world.getBlockState(under).isAir()) {
             BlockHitResult hit = new BlockHitResult(Vec3d.ofCenter(under), Direction.UP, under, false);
@@ -269,11 +491,9 @@ public class KingerLol implements ClientModInitializer {
     }
 
     private static void fullbright(ClientPlayerEntity p) {
-        if (FULLBRIGHT.on) {
-            StatusEffectInstance cur = p.getStatusEffect(StatusEffects.NIGHT_VISION);
-            if (cur == null || cur.getDuration() < 220) {
-                p.addStatusEffect(new StatusEffectInstance(StatusEffects.NIGHT_VISION, 400, 0, true, false, false));
-            }
+        StatusEffectInstance cur = p.getStatusEffect(StatusEffects.NIGHT_VISION);
+        if (cur == null || cur.getDuration() < 220) {
+            p.addStatusEffect(new StatusEffectInstance(StatusEffects.NIGHT_VISION, 400, 0, true, false, false));
         }
     }
 
@@ -292,13 +512,17 @@ public class KingerLol implements ClientModInitializer {
         p.setPitch((float) -Math.toDegrees(Math.atan2(dy, flat)));
     }
 
+    // --- HUD ---
     private static void renderHud(DrawContext ctx, RenderTickCounter tickCounter) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.player == null || mc.options.hudHidden || mc.currentScreen instanceof Menu) return;
         TextRenderer tr = mc.textRenderer;
         int y = 4;
+        
         if (WATERMARK.on) {
-            ctx.drawTextWithShadow(tr, NAME + " §7" + VERSION, 4, y, 0xFF00E5FF); y += 12;
+            String wm = NAME + " " + VERSION;
+            ctx.drawTextWithShadow(tr, wm, 4, y, 0xFF00E5FF); 
+            y += 14;
         }
         if (ARRAYLIST.on) {
             int sw = ctx.getScaledWindowWidth();
@@ -312,6 +536,7 @@ public class KingerLol implements ClientModInitializer {
         }
     }
 
+    // --- MENU ---
     enum Kind { TAB, TOGGLE, ACTION, STEP, VALUE }
     record Widget(int x, int y, int w, int h, String label, Kind kind, BooleanSupplier active, String desc, Supplier<String> tag) {}
 
@@ -319,8 +544,8 @@ public class KingerLol implements ClientModInitializer {
         static final int PW = 480, PH = 320;
         private final List<Widget> widgets = new ArrayList<>();
         
-        final int BG_COLOR = 0xFF18181A;
-        final int PANEL_COLOR = 0xFF222224;
+        final int BG_COLOR = 0xFF121214;
+        final int PANEL_COLOR = 0xFF1E1E20;
         final int ACCENT = 0xFF00E5FF;
         final int TEXT_COLOR = 0xFFEEEEEE;
         final int TEXT_DARK = 0xFF888888;
@@ -371,11 +596,11 @@ public class KingerLol implements ClientModInitializer {
         }
 
         @Override public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
-            ctx.fill(0, 0, this.width, this.height, 0x66000000);
+            ctx.fill(0, 0, this.width, this.height, 0x88000000);
             int px = px(), py = py();
             ctx.fill(px, py, px + PW, py + PH, BG_COLOR);
             ctx.fill(px, py, px + 120, py + PH, PANEL_COLOR);
-            ctx.fill(px, py, px + PW, py + 30, 0xFF111113);
+            ctx.fill(px, py, px + PW, py + 30, 0xFF0A0A0C);
             ctx.fill(px, py + 30, px + PW, py + 31, ACCENT);
         }
 
@@ -442,6 +667,6 @@ public class KingerLol implements ClientModInitializer {
                 if (be instanceof ChestBlockEntity) found.add(pos.toImmutable());
             }
         }
-        p.sendMessage(Text.literal(NAME + " | Chests found: " + found.size()), false);
+        p.sendMessage(Text.literal("Kinger v elte | Chests found: " + found.size()), false);
     }
-    }
+                    }
