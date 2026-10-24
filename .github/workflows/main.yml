@@ -23,7 +23,7 @@ jobs:
           gradle-version: '8.14'
 
       - name: Build with Gradle
-        run: gradle build
+        run: gradle build -q
 
       - name: Upload JAR
         uses: actions/upload-artifact@v4
