@@ -16,6 +16,8 @@ import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.EquippableComponent;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
@@ -202,7 +204,8 @@ public class KingerLol implements ClientModInitializer {
         if (p.getEquippedStack(EquipmentSlot.CHEST).isEmpty()) {
             for (int slot = 9; slot <= 44; slot++) {
                 ItemStack st = p.playerScreenHandler.getSlot(slot).getStack();
-                if (st.getItem() instanceof ArmorItem armor && armor.getSlotType() == EquipmentSlot.CHEST) {
+                EquippableComponent equippable = st.get(DataComponentTypes.EQUIPPABLE);
+                if (equippable != null && equippable.slot() == EquipmentSlot.CHEST) {
                     mc.interactionManager.clickSlot(p.playerScreenHandler.syncId, slot, 0, SlotActionType.QUICK_MOVE, p);
                     armorCooldown = 10; return;
                 }
@@ -230,7 +233,7 @@ public class KingerLol implements ClientModInitializer {
     private static void noFall(MinecraftClient mc, ClientPlayerEntity p) {
         if (!NOFALL.on) return;
         if (p.fallDistance > 2.0f) {
-            p.networkHandler.sendPacket(new PlayerMoveC2SPacket.OnGroundOnly(true));
+            p.networkHandler.sendPacket(new PlayerMoveC2SPacket.OnGroundOnly(true, p.horizontalCollision));
             p.fallDistance = 0f;
         }
     }
@@ -367,4 +370,4 @@ public class KingerLol implements ClientModInitializer {
         }
         p.sendMessage(Text.literal(NAME + " | Chests found: " + found.size()), false);
     }
-              }
+                    }
