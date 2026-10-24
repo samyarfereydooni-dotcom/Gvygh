@@ -1,6 +1,9 @@
 package com.kinger.lol;
 
+import com.mojang.brigadier.CommandDispatcher;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
@@ -103,7 +106,7 @@ public class KingerLol implements ClientModInitializer {
     static final Num REACH = new Num("Reach", "Reach distance", Cat.SWORD, 4.5, 3.0, 6.0, 0.5);
 
     private static KeyBinding guiKey;
-    static Cat lastTab = Cat.SWORD; // Default tab
+    static Cat lastTab = Cat.SWORD;
     private static int totemCooldown = 0, armorCooldown = 0, auraCooldown = 0;
     private static float lastHealth = 20f;
 
@@ -111,13 +114,24 @@ public class KingerLol implements ClientModInitializer {
     public void onInitializeClient() {
         load();
         
-        // دکمه منو روی Numpad 5 تنظیم شد
+        // ثبت کیبورد استاندارد
         guiKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "KingerLol Menu", 
                 InputUtil.Type.KEYSYM, 
-                GLFW.GLFW_KEY_KP_5, 
-                KeyBinding.Category.MISC
+                GLFW.GLFW_KEY_RIGHT_SHIFT, 
+                "KingerLol"
         ));
+        
+        // ثبت دستور /kingerlol برای اندروید
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
+            dispatcher.register(ClientCommandManager.literal("kingerlol")
+                .executes(context -> {
+                    MinecraftClient.getInstance().execute(() -> {
+                        MinecraftClient.getInstance().setScreen(new Menu());
+                    });
+                    return 1;
+                }));
+        });
         
         ClientTickEvents.END_CLIENT_TICK.register(KingerLol::tick);
         HudRenderCallback.EVENT.register(KingerLol::renderHud);
@@ -307,10 +321,9 @@ public class KingerLol implements ClientModInitializer {
         static final int PW = 480, PH = 320;
         private final List<Widget> widgets = new ArrayList<>();
         
-        // Vape Colors
         final int BG_COLOR = 0xFF18181A;
         final int PANEL_COLOR = 0xFF222224;
-        final int ACCENT = 0xFF00E5FF; // Neon Cyan
+        final int ACCENT = 0xFF00E5FF;
         final int TEXT_COLOR = 0xFFEEEEEE;
         final int TEXT_DARK = 0xFF888888;
 
@@ -326,7 +339,6 @@ public class KingerLol implements ClientModInitializer {
             widgets.clear();
             int px = px(), py = py();
             
-            // Sidebar (Categories)
             int sx = px + 10, sy = py + 40, i = 0;
             for (Cat c : Cat.values()) {
                 final Cat cc = c; int ty = sy + i * 24;
@@ -335,7 +347,6 @@ public class KingerLol implements ClientModInitializer {
                 i++;
             }
 
-            // Content (Modules & Sliders)
             int cx = px + 125, cy = py + 40, col = 0, row = 0;
             for (Mod m : MODS) {
                 if (m.cat != lastTab) continue;
@@ -349,15 +360,12 @@ public class KingerLol implements ClientModInitializer {
             }
             if (col == 1) row++;
             
-            // Sliders (Nums)
             for (Num n : NUMS) {
                 if (n.cat != lastTab) continue;
                 int ny = cy + row * 28;
                 widgets.add(new Widget(cx, ny, 250, 20, n.name, Kind.VALUE, () -> false, n.desc, () -> String.valueOf(n.value)));
-                // - Button
                 hit(cx + 255, ny, 20, 20, () -> { n.change(-1); save(); });
                 widgets.add(new Widget(cx + 255, ny, 20, 20, "-", Kind.STEP, () -> false, null, null));
-                // + Button
                 hit(cx + 278, ny, 20, 20, () -> { n.change(1); save(); });
                 widgets.add(new Widget(cx + 278, ny, 20, 20, "+", Kind.STEP, () -> false, null, null));
                 row++;
@@ -365,20 +373,12 @@ public class KingerLol implements ClientModInitializer {
         }
 
         @Override public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
-            // Dim background
             ctx.fill(0, 0, this.width, this.height, 0x66000000);
-            
             int px = px(), py = py();
-            
-            // Main Panel
             ctx.fill(px, py, px + PW, py + PH, BG_COLOR);
-            
-            // Sidebar panel
             ctx.fill(px, py, px + 120, py + PH, PANEL_COLOR);
-            
-            // Top Header
             ctx.fill(px, py, px + PW, py + 30, 0xFF111113);
-            ctx.fill(px, py + 30, px + PW, py + 31, ACCENT); // Accent line
+            ctx.fill(px, py + 30, px + PW, py + 31, ACCENT);
         }
 
         @Override public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
@@ -386,7 +386,6 @@ public class KingerLol implements ClientModInitializer {
             TextRenderer tr = this.textRenderer;
             int px = px(), py = py();
             
-            // Title
             ctx.drawTextWithShadow(tr, NAME, px + 10, py + 10, ACCENT);
             ctx.drawTextWithShadow(tr, VERSION, px + PW - tr.getWidth(VERSION) - 10, py + 10, TEXT_DARK);
 
@@ -394,30 +393,22 @@ public class KingerLol implements ClientModInitializer {
                 boolean hov = mouseX >= w.x() && mouseX < w.x() + w.w() && mouseY >= w.y() && mouseY < w.y() + w.h();
                 boolean on = w.active().getAsBoolean();
                 
-                // Draw Widget Background
                 if (w.kind() == Kind.TAB) {
                     if (on) {
                         ctx.fill(w.x(), w.y(), w.x() + w.w(), w.y() + w.h(), 0xFF2A2A2D);
-                        ctx.fill(w.x(), w.y(), w.x() + 3, w.y() + w.h(), ACCENT); // Left accent line
+                        ctx.fill(w.x(), w.y(), w.x() + 3, w.y() + w.h(), ACCENT);
                     } else if (hov) {
                         ctx.fill(w.x(), w.y(), w.x() + w.w(), w.y() + w.h(), 0xFF2A2A2D);
                     }
                     ctx.drawTextWithShadow(tr, w.label(), w.x() + 10, w.y() + (w.h() - 8) / 2, on ? ACCENT : TEXT_COLOR);
                 } 
                 else if (w.kind() == Kind.TOGGLE) {
-                    // Vape Toggle style
                     int bgColor = on ? ACCENT : 0xFF333333;
                     if (hov) bgColor = on ? 0xFF33FFFF : 0xFF444444;
-                    
-                    // Text
                     ctx.drawTextWithShadow(tr, w.label(), w.x() + 5, w.y() + (w.h() - 8) / 2, on ? 0xFFFFFFFF : TEXT_DARK);
-                    
-                    // Toggle Switch
                     int toggleX = w.x() + w.w() - 28;
                     int toggleY = w.y() + 5;
-                    // Draw track
                     ctx.fill(toggleX, toggleY, toggleX + 22, toggleY + 12, bgColor);
-                    // Draw circle
                     int circleX = on ? toggleX + 12 : toggleX + 2;
                     ctx.fill(circleX, toggleY + 2, circleX + 8, toggleY + 10, 0xFFFFFFFF);
                 }
@@ -455,4 +446,4 @@ public class KingerLol implements ClientModInitializer {
         }
         p.sendMessage(Text.literal(NAME + " | Chests found: " + found.size()), false);
     }
-            }
+                                                          }
