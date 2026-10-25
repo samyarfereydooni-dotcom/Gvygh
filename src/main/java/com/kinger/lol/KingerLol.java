@@ -6,8 +6,6 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
-import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
-import net.fabricmc.fabric.api.resource.ResourcePackActivationType;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -83,70 +81,60 @@ public class KingerLol implements ClientModInitializer {
         void change(int dir) { value = Math.max(min, Math.min(max, value + dir * step)); }
     }
 
-    // --- COMBAT ---
-    static final Mod KILLAURA = new Mod("Kill Aura", "Silent attacks + smoothing", Cat.COMBAT, false, false);
-    static final Mod AIMASSIST = new Mod("Aim Assist", "Smooth legit aim", Cat.COMBAT, true, false);
+    static final Mod KILLAURA = new Mod("Kill Aura", "Silent + smoothing", Cat.COMBAT, false, false);
+    static final Mod AIMASSIST = new Mod("Aim Assist", "GCD human aim", Cat.COMBAT, true, false);
     static final Mod CRITICALS = new Mod("Criticals", "Smart crits", Cat.COMBAT, true, false);
-    static final Mod HITSELECT = new Mod("Hit Select", "Only attack when hit lands", Cat.COMBAT, true, false);
-    static final Mod SHIELDBREAKER = new Mod("Shield Breaker", "Axe when shield up", Cat.COMBAT, true, false);
-    static final Mod VELOCITY = new Mod("Velocity", "Anti-KB + jump reset", Cat.COMBAT, true, false);
+    static final Mod HITSELECT = new Mod("Hit Select", "Only land hits", Cat.COMBAT, true, false);
+    static final Mod SHIELDBREAKER = new Mod("Shield Breaker", "Axe swap", Cat.COMBAT, true, false);
+    static final Mod VELOCITY = new Mod("Velocity", "Anti-KB", Cat.COMBAT, true, false);
     static final Mod AUTOSWORD = new Mod("Auto Sword", "Best weapon", Cat.COMBAT, true, false);
     static final Mod BOWAIMBOT = new Mod("Bow Aimbot", "Predict arrow", Cat.COMBAT, true, false);
-    static final Mod ANTIBOT = new Mod("Anti Bot", "Ignores NPCs", Cat.COMBAT, true, false);
-    static final Mod SPRINTRESET = new Mod("Sprint Reset", "For combos", Cat.COMBAT, true, false);
+    static final Mod ANTIBOT = new Mod("Anti Bot", "Ignore NPCs", Cat.COMBAT, true, false);
 
-    // --- MACE ---
-    static final Mod MACE_KILLER = new Mod("Auto Mace Killer", "All-in-one combo", Cat.MACE, false, false);
-    static final Num MACE_RANGE = new Num("Target Range", "Search radius", Cat.MACE, 20.0, 5.0, 50.0, 1.0);
+    static final Mod MACE_KILLER = new Mod("Auto Mace Killer", "Full combo", Cat.MACE, false, false);
+    static final Num MACE_RANGE = new Num("Target Range", "Radius", Cat.MACE, 20.0, 5.0, 50.0, 1.0);
     static final Num PEARL_DELAY = new Num("Pearl Delay", "Ticks", Cat.MACE, 3.0, 1.0, 10.0, 1.0);
 
-    // --- CRYSTAL ---
-    static final Mod AUTOCRYSTAL = new Mod("Auto Crystal", "Place & break", Cat.CRYSTAL, false, false);
+    static final Mod AUTOCRYSTAL = new Mod("Auto Crystal", "Place+break", Cat.CRYSTAL, false, false);
     static final Mod ANCHOR_AURA = new Mod("Anchor Aura", "Auto anchors", Cat.CRYSTAL, false, false);
     static final Mod AUTOTRAP = new Mod("Auto Trap", "Obsidian trap", Cat.CRYSTAL, false, false);
 
-    // --- SMP ---
-    static final Mod AUTOTOTEM = new Mod("Auto Totem", "Instant offhand + fallback", Cat.SMP, true, false);
+    static final Mod AUTOTOTEM = new Mod("Auto Totem", "Instant", Cat.SMP, true, false);
     static final Mod AUTOARMOR = new Mod("Auto Armor", "Best armor", Cat.SMP, true, false);
-    static final Mod AUTOPOT = new Mod("Auto Pot", "Health pot", Cat.SMP, true, false);
+    static final Mod AUTOPOT = new Mod("Auto Pot", "Health", Cat.SMP, true, false);
     static final Mod AUTOGAPPLE = new Mod("Auto Gapple", "Gapple", Cat.SMP, true, false);
     static final Mod AUTORESPAWN = new Mod("Auto Respawn", "Instant", Cat.SMP, true, false);
-    static final Mod NOSLOW = new Mod("No Slow", "No slow effect", Cat.SMP, true, false);
-    static final Mod AUTOSHIELD = new Mod("Auto Shield", "Shield idle", Cat.SMP, false, false);
-    static final Mod CHESTSTEALER = new Mod("Chest Stealer", "Auto take items", Cat.SMP, false, false);
-    static final Mod STORAGE = new Mod("Storage Finder", "Advanced locate", Cat.SMP, false, true);
+    static final Mod NOSLOW = new Mod("No Slow", "No slow", Cat.SMP, true, false);
+    static final Mod AUTOSHIELD = new Mod("Auto Shield", "Idle shield", Cat.SMP, false, false);
+    static final Mod CHESTSTEALER = new Mod("Chest Stealer", "Auto take", Cat.SMP, false, false);
+    static final Mod STORAGE = new Mod("Storage Finder", "Find chests", Cat.SMP, false, true);
 
-    // --- MOVEMENT ---
-    static final Mod SPRINT = new Mod("Auto Sprint", "Always sprint", Cat.MOVEMENT, true, false);
-    static final Mod NOFALL = new Mod("No Fall", "No fall damage", Cat.MOVEMENT, true, false);
+    static final Mod SPRINT = new Mod("Auto Sprint", "Sprint", Cat.MOVEMENT, true, false);
+    static final Mod NOFALL = new Mod("No Fall", "No fall dmg", Cat.MOVEMENT, true, false);
     static final Mod STEP = new Mod("Step", "Auto step", Cat.MOVEMENT, true, false);
     static final Mod SCAFFOLD = new Mod("Scaffold", "Auto bridge", Cat.MOVEMENT, false, false);
-    static final Mod BUNNYHOP = new Mod("Bunny Hop", "Auto jump", Cat.MOVEMENT, false, false);
+    static final Mod BUNNYHOP = new Mod("Bunny Hop", "Jump", Cat.MOVEMENT, false, false);
     static final Mod ANTIAFK = new Mod("Anti AFK", "Stay active", Cat.MOVEMENT, true, false);
 
-    // --- RENDER ---
-    static final Mod FULLBRIGHT = new Mod("Fullbright", "See in dark", Cat.RENDER, true, false);
-    static final Mod PLAYERESP = new Mod("Player ESP", "Glow players", Cat.RENDER, true, false);
-    static final Mod TRACERS = new Mod("Tracers", "Lines + arrows", Cat.RENDER, true, false);
-    static final Mod BLOCKESP = new Mod("Block ESP", "Spawner/Ore glow", Cat.RENDER, false, false);
+    static final Mod FULLBRIGHT = new Mod("Fullbright", "See dark", Cat.RENDER, true, false);
+    static final Mod PLAYERESP = new Mod("Player ESP", "Glow", Cat.RENDER, true, false);
+    static final Mod TRACERS = new Mod("Tracers", "Lines", Cat.RENDER, true, false);
+    static final Mod CUSTOM_CROSSHAIR = new Mod("Custom Crosshair", "Chad crosshair", Cat.RENDER, true, false);
 
-    // --- MISC ---
-    static final Mod AUTOLOGIN = new Mod("Auto Login", "/login cmd", Cat.MISC, false, true);
-    static final Mod AUTOREGISTER = new Mod("Auto Register", "/register cmd", Cat.MISC, false, true);
-    static final Mod AUTODISCONNECT = new Mod("Auto Disconnect", "If staff near", Cat.MISC, false, false);
+    static final Mod AUTOLOGIN = new Mod("Auto Login", "/login", Cat.MISC, false, true);
+    static final Mod AUTOREGISTER = new Mod("Auto Register", "/register", Cat.MISC, false, true);
+    static final Mod AUTODISCONNECT = new Mod("Auto Disconnect", "Staff detect", Cat.MISC, false, false);
 
-    // --- HUD ---
     static final Mod WATERMARK = new Mod("Watermark", "Client name", Cat.HUD, true, false);
-    static final Mod ARRAYLIST = new Mod("ArrayList", "Active modules", Cat.HUD, true, false);
-    static final Mod PING_HUD = new Mod("Ping", "Show ping", Cat.HUD, true, false);
-    static final Mod FPS_HUD = new Mod("FPS", "Show FPS", Cat.HUD, true, false);
+    static final Mod ARRAYLIST = new Mod("ArrayList", "Active", Cat.HUD, true, false);
+    static final Mod PING_HUD = new Mod("Ping", "Ping", Cat.HUD, true, false);
+    static final Mod FPS_HUD = new Mod("FPS", "FPS", Cat.HUD, true, false);
 
-    // --- SETTINGS ---
-    static final Num AURA_RANGE = new Num("Aura Range", "Attack distance", Cat.COMBAT, 4.5, 3.0, 6.0, 0.5);
+    static final Num AURA_RANGE = new Num("Aura Range", "Attack range", Cat.COMBAT, 4.5, 3.0, 6.0, 0.5);
     static final Num AIM_SPEED = new Num("Aim Speed", "1-100", Cat.COMBAT, 35, 1, 100, 5);
-    static final Num REACH = new Num("Reach", "Extended reach", Cat.COMBAT, 3.0, 3.0, 6.0, 0.5);
-    static final Num AIM_MODE = new Num("Aim Mode", "0=Legit 1=Bal 2=Rage", Cat.COMBAT, 1, 0, 2, 1);
-    static final Num STORAGE_CHUNKS = new Num("Storage Chunks", "Scan radius", Cat.SMP, 32, 8, 32, 1);
+    static final Num REACH = new Num("Reach", "Reach", Cat.COMBAT, 3.0, 3.0, 6.0, 0.5);
+    static final Num AIM_MODE = new Num("Aim Mode", "0=L 1=B 2=R", Cat.COMBAT, 1, 0, 2, 1);
+    static final Num STORAGE_CHUNKS = new Num("Storage Chunks", "Radius", Cat.SMP, 32, 8, 32, 1);
 
     private static KeyBinding guiKey;
     static Cat lastTab = Cat.MACE;
@@ -156,32 +144,18 @@ public class KingerLol implements ClientModInitializer {
     private static float lastHealth = 20f;
     private static int lastDamageTime = -10, tickCounter = 0;
 
-    // Mace State
     private enum MaceState { IDLE, EQUIP, THROW_PEARL, THROW_WIND, GLIDE, SMASH, COMBO }
     private static MaceState maceState = MaceState.IDLE;
     private static int maceTimer = 0, maceStateTicks = 0;
     private static PlayerEntity maceTarget;
     private static boolean elytraEquipped = false;
 
-    // Storage
     private static final List<BlockPos> storageResults = new ArrayList<>();
     private static int storageShowTimer = 0;
 
     @Override
     public void onInitializeClient() {
         load();
-        
-        // Auto Resource Pack Hook - assets/minecraft/ in mod auto-loads
-        try {
-            ResourceManagerHelper.registerBuiltinResourcePack(
-                Identifier.of("kingerlol", "kinger_pack"),
-                FabricLoader.getInstance().getModContainer("kingerlol").orElseThrow(),
-                Text.literal("Kinger Pack"),
-                ResourcePackActivationType.ALWAYS_ENABLED
-            );
-        } catch (Exception ignored) {
-            // Fallback: assets still load even without explicit registration
-        }
 
         KeyBinding.Category category = KeyBinding.Category.create(Identifier.of("kingerlol", "main"));
         guiKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
@@ -199,7 +173,6 @@ public class KingerLol implements ClientModInitializer {
     }
 
     private static Path configPath() { return FabricLoader.getInstance().getConfigDir().resolve("kingerlol.properties"); }
-
     static void save() {
         try {
             Properties pr = new Properties();
@@ -208,7 +181,6 @@ public class KingerLol implements ClientModInitializer {
             try (OutputStream os = Files.newOutputStream(configPath())) { pr.store(os, NAME); }
         } catch (Exception ignored) {}
     }
-
     private static void load() {
         try {
             Path path = configPath(); if (!Files.exists(path)) return;
@@ -236,12 +208,11 @@ public class KingerLol implements ClientModInitializer {
         boolean tookDamage = hp < lastHealth - 0.1f;
         if (tookDamage && hp > 0) lastDamageTime = tickCounter;
 
-        // Auto Disconnect
         if (AUTODISCONNECT.on && mc.getNetworkHandler() != null && tickCounter % 40 == 0) {
             for (PlayerListEntry e : mc.getNetworkHandler().getPlayerList()) {
-                String name = e.getProfile().getName().toLowerCase();
+                String name = e.getProfile().name().toLowerCase();
                 if (name.contains("staff") || name.contains("admin") || name.contains("owner")) {
-                    if (!e.getProfile().getId().equals(p.getUuid())) {
+                    if (!e.getProfile().id().equals(p.getUuid())) {
                         p.networkHandler.getConnection().disconnect(Text.literal("§cStaff detected"));
                         return;
                     }
@@ -249,7 +220,6 @@ public class KingerLol implements ClientModInitializer {
             }
         }
 
-        // Anti-AFK
         if (ANTIAFK.on) {
             afkTimer++;
             if (afkTimer > 60 && p.isOnGround()) { p.jump(); afkTimer = 0; }
@@ -295,14 +265,12 @@ public class KingerLol implements ClientModInitializer {
         if (storageShowTimer > 0) storageShowTimer--;
     }
 
-    // ============ STORAGE FINDER ============
-
     static void findStorage(MinecraftClient mc) {
         ClientPlayerEntity p = mc.player;
         if (p == null || mc.world == null) return;
         storageResults.clear();
         ChunkPos center = p.getChunkPos();
-        int radius = STORAGE_CHUNKS.value;
+        int radius = (int) STORAGE_CHUNKS.value;
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
                 Chunk chunk = mc.world.getChunk(center.x + dx, center.z + dz, ChunkStatus.FULL, false);
@@ -315,7 +283,6 @@ public class KingerLol implements ClientModInitializer {
         }
         BlockPos me = p.getBlockPos();
         storageResults.sort(Comparator.comparingDouble(b -> b.getSquaredDistance(me)));
-
         p.sendMessage(Text.literal("§b═══ STORAGE v500Q ═══"), false);
         p.sendMessage(Text.literal("§fFound §b" + storageResults.size() + "§f chests in §b" + radius + "§f chunks"), false);
         int n = Math.min(15, storageResults.size());
@@ -326,8 +293,6 @@ public class KingerLol implements ClientModInitializer {
         }
         storageShowTimer = 20 * 30;
     }
-
-    // ============ CHEST STEALER ============
 
     private static void chestStealer(MinecraftClient mc, ClientPlayerEntity p) {
         if (chestCooldown > 0) { chestCooldown--; return; }
@@ -365,8 +330,6 @@ public class KingerLol implements ClientModInitializer {
         if (offhand.isOf(Items.SHIELD) && !p.isBlocking() && !p.isSprinting()) mc.options.useKey.setPressed(true);
         else if (!offhand.isOf(Items.SHIELD) && p.isBlocking()) mc.options.useKey.setPressed(false);
     }
-
-    // ============ MACE KILLER ============
 
     private static boolean isKitReady(ClientPlayerEntity p) {
         return p.getInventory().getStack(0).isOf(Items.MACE) &&
@@ -482,8 +445,6 @@ public class KingerLol implements ClientModInitializer {
         mc.interactionManager.clickSlot(p.playerScreenHandler.syncId, 6, 3, SlotActionType.SWAP, p);
     }
 
-    // ============ COMBAT ============
-
     private static boolean isBot(PlayerEntity player, MinecraftClient mc) {
         if (!ANTIBOT.on || mc.getNetworkHandler() == null) return false;
         PlayerListEntry entry = mc.getNetworkHandler().getPlayerListEntry(player.getUuid());
@@ -504,7 +465,6 @@ public class KingerLol implements ClientModInitializer {
         if (target == null || p.getAttackCooldownProgress(0f) < 0.9f) return;
         if (HITSELECT.on && p.distanceTo(target) > 3.3) return;
 
-        // Shield breaker
         if (SHIELDBREAKER.on && target.isBlocking()) {
             int axeSlot = -1;
             for (int i = 0; i < 9; i++) {
@@ -569,7 +529,7 @@ public class KingerLol implements ClientModInitializer {
         double flat = Math.sqrt(dx * dx + dz * dz);
         float wantYaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
         float wantPitch = (float) -Math.toDegrees(Math.atan2(dy, flat));
-        float speedF = Math.min(1f, AIM_SPEED.value / 100f);
+        float speedF = (float) Math.min(1.0, AIM_SPEED.value / 100.0);
         float sens = AIM_MODE.value == 0 ? 0.15f : AIM_MODE.value == 1 ? 0.10f : 0.05f;
         float finalYaw = p.getYaw() + wrapDegrees(wantYaw - p.getYaw()) * speedF;
         float finalPitch = p.getPitch() + (wantPitch - p.getPitch()) * speedF;
@@ -638,8 +598,6 @@ public class KingerLol implements ClientModInitializer {
         double drop = 0.05 * time * time * 9.8;
         lookAt(p, predicted.add(0, drop, 0));
     }
-
-    // ============ CRYSTAL ============
 
     private static void autoCrystal(MinecraftClient mc, ClientPlayerEntity p) {
         if (mc.currentScreen != null) return;
@@ -750,8 +708,6 @@ public class KingerLol implements ClientModInitializer {
         }
     }
 
-    // ============ GENERAL ============
-
     private static void autoTotem(MinecraftClient mc, ClientPlayerEntity p, boolean tookDamage) {
         if (totemCooldown > 0) { totemCooldown--; return; }
         if (p.currentScreenHandler != p.playerScreenHandler || p.getOffHandStack().isOf(Items.TOTEM_OF_UNDYING)) return;
@@ -763,7 +719,6 @@ public class KingerLol implements ClientModInitializer {
                 return;
             }
         }
-        // Fallback to enchanted golden apple
         if (p.getHealth() < 8) {
             for (int slot = 9; slot <= 44; slot++) {
                 if (p.playerScreenHandler.getSlot(slot).getStack().isOf(Items.ENCHANTED_GOLDEN_APPLE)) {
@@ -857,8 +812,6 @@ public class KingerLol implements ClientModInitializer {
         }
     }
 
-    // ============ RENDER ============
-
     private static void fullbright(ClientPlayerEntity p) {
         StatusEffectInstance cur = p.getStatusEffect(StatusEffects.NIGHT_VISION);
         if (cur == null || cur.getDuration() < 220) {
@@ -905,7 +858,7 @@ public class KingerLol implements ClientModInitializer {
         int sw = ctx.getScaledWindowWidth(), sh = ctx.getScaledWindowHeight();
 
         if (TRACERS.on) {
-            Vec3d camPos = mc.gameRenderer.getCamera().getPos();
+            Vec3d camPos = p.getEyePos();
             float camYaw = mc.gameRenderer.getCamera().getYaw();
             float camPitch = mc.gameRenderer.getCamera().getPitch();
             double fov = mc.options.getFov().getValue();
@@ -918,13 +871,6 @@ public class KingerLol implements ClientModInitializer {
                         camPos, camYaw, camPitch, sw, sh, focal);
                 if (sc == null) continue;
                 ctx.fill(sw / 2, sh - 1, sc[0], sh + 1, 0xFF00E5FF);
-                Vec3d oVel = o.getVelocity();
-                if (oVel.horizontalLength() > 0.05) {
-                    double angle = Math.toDegrees(Math.atan2(oVel.z, oVel.x));
-                    int ax = (int)(sc[0] + 15 * Math.cos(Math.toRadians(angle)));
-                    int ay = (int)(sc[1] + 15 * Math.sin(Math.toRadians(angle)));
-                    ctx.fill(sc[0], sc[1] - 1, ax, ay, 0xFFFF5555);
-                }
             }
         }
 
@@ -979,8 +925,6 @@ public class KingerLol implements ClientModInitializer {
             }
         }
     }
-
-    // ============ MENU ============
 
     enum Kind { TAB, TOGGLE, ACTION, STEP, VALUE }
     record Widget(int x, int y, int w, int h, String label, Kind kind, BooleanSupplier active, String desc, Supplier<String> tag) {}
