@@ -98,9 +98,12 @@ public class KingerLol implements ClientModInitializer {
     static final Mod ANTIBOT = new Mod("Anti Bot", "Ignores NPCs", Cat.COMBAT, true, false);
 
     static final Mod MACE_KILLER = new Mod("Auto Mace Killer", "Pearl catch + smash", Cat.MACE, false, false);
+    static final Mod SHOWOFF_SPIN = new Mod("Showoff 360", "Do a 360 spin before smash", Cat.MACE, true, false);
+    static final Mod SHOWOFF_FLIP = new Mod("Showoff Flip", "Pitch flip during glide", Cat.MACE, false, false);
     static final Num MACE_RANGE = new Num("Target Range", "Radius", Cat.MACE, 20.0, 5.0, 50.0, 1.0);
-    static final Num PEARL_DELAY = new Num("Pearl Delay", "Ticks pearl to wind", Cat.MACE, 15.0, 5.0, 30.0, 1.0);
-    static final Num AIM_SMOOTH = new Num("Aim Smooth", "1=slow 100=instant", Cat.MACE, 25.0, 5.0, 100.0, 5.0);
+    static final Num PEARL_DELAY = new Num("Pearl Delay", "Ticks to wind", Cat.MACE, 6.0, 1.0, 15.0, 1.0);
+    static final Num AIM_SMOOTH = new Num("Aim Smooth", "1=slow 100=instant", Cat.MACE, 20.0, 5.0, 100.0, 5.0);
+    static final Num ROT_SPEED = new Num("Rotate Speed", "Deg/tick", Cat.MACE, 20.0, 5.0, 45.0, 1.0);
 
     static final Mod AUTOCRYSTAL = new Mod("Auto Crystal", "Place+break", Cat.CRYSTAL, false, false);
     static final Mod ANCHOR_AURA = new Mod("Anchor Aura", "Auto anchors", Cat.CRYSTAL, false, false);
@@ -159,13 +162,16 @@ public class KingerLol implements ClientModInitializer {
     private static int lastDamageTime = -10, tickCounter = 0;
 
     private enum MaceState {
-        IDLE, EQUIP, JUMP_PEARL, WAIT_PEARL, THROW_WIND, WAIT_BOOST,
-        GLIDE, PRE_SMASH, SMASH, COMBO
+        IDLE, EQUIP, ROTATE_UP, WAIT_STABLE, THROW_PEARL, WAIT_PEARL,
+        THROW_WIND, WAIT_BOOST, GLIDE, SPIN360, PRE_SMASH, SMASH, COMBO
     }
     private static MaceState maceState = MaceState.IDLE;
     private static int maceTimer = 0, maceStateTicks = 0;
     private static PlayerEntity maceTarget;
     private static boolean elytraEquipped = false;
+    private static int stablePitchTicks = 0;
+    private static float targetSpinYaw = 0;
+    private static int spinStartTick = 0;
 
     private static final List<BlockPos> storageResults = new ArrayList<>();
     private static final List<BlockPos> chestCache = new ArrayList<>();
@@ -309,6 +315,7 @@ public class KingerLol implements ClientModInitializer {
             case IDLE -> {
                 if (!isKitReady(p)) { maceState = MaceState.EQUIP; return; }
                 if (!p.isOnGround()) return;
+
                 PlayerEntity target = null;
                 double bestD = MACE_RANGE.value * MACE_RANGE.value;
                 for (PlayerEntity o : mc.world.getPlayers()) {
@@ -317,18 +324,21 @@ public class KingerLol implements ClientModInitializer {
                     if (d < bestD) { bestD = d; target = o; }
                 }
                 if (target == null) return;
+
                 maceTarget = target;
-                maceState = MaceState.JUMP_PEARL;
+                maceState = MaceState.ROTATE_UP;
                 maceTimer = 0;
                 maceStateTicks = 0;
+                stablePitchTicks = 0;
                 p.jump();
             }
+
             case EQUIP -> {
                 if (kitCooldown > 0) { kitCooldown--; return; }
                 int mS = findItemSlot(p, Items.MACE), wS = findItemSlot(p, Items.WIND_CHARGE);
                 int pS = findItemSlot(p, Items.ENDER_PEARL), eS = findItemSlot(p, Items.ELYTRA);
                 if (mS == -1 || wS == -1 || pS == -1 || eS == -1) {
-                    p.sendMessage(Text.literal("§cMissing: Mace / Wind Charge / Pearl / Elytra"), true);
+                    p.sendMessage(Text.literal("§cMissing: Mace / Wind / Pearl / Elytra"), true);
                     MACE_KILLER.on = false; maceState = MaceState.IDLE; return;
                 }
                 int sync = p.playerScreenHandler.syncId;
@@ -338,81 +348,171 @@ public class KingerLol implements ClientModInitializer {
                 if (eS != 3) { mc.interactionManager.clickSlot(sync, invToHandlerSlot(eS), 3, SlotActionType.SWAP, p); kitCooldown = 3; return; }
                 maceState = MaceState.IDLE;
             }
-            case JUMP_PEARL -> {
+
+            case ROTATE_UP -> {
                 maceTimer++;
-                smoothLookPitch(p, -88.0f, (float)(AIM_SMOOTH.value / 100.0));
-                if (maceTimer >= 3 && p.getPitch() < -80.0f) {
-                    p.getInventory().setSelectedSlot(2);
-                    mc.interactionManager.interactItem(p, Hand.MAIN_HAND);
-                    p.swingHand(Hand.MAIN_HAND);
-                    maceState = MaceState.WAIT_PEARL;
-                    maceTimer = (int) PEARL_DELAY.value;
+                float targetPitch = -90.0f;
+                float current = p.getPitch();
+                float diff = targetPitch - current;
+                float maxStep = (float) ROT_SPEED.value;
+                float step = Math.max(-maxStep, Math.min(maxStep, diff));
+                float newPitch = current + step;
+
+                p.setPitch(newPitch);
+                p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(
+                        p.getYaw(), newPitch, p.isOnGround(), p.horizontalCollision));
+
+                if (Math.abs(newPitch - (-90.0f)) < 1.0f) {
+                    maceState = MaceState.WAIT_STABLE;
+                    stablePitchTicks = 0;
+                    maceTimer = 0;
+                }
+
+                if (maceTimer > 40) resetMace(mc, p);
+            }
+
+            case WAIT_STABLE -> {
+                p.setPitch(-90.0f);
+                p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(
+                        p.getYaw(), -90.0f, p.isOnGround(), p.horizontalCollision));
+                stablePitchTicks++;
+                if (stablePitchTicks >= 2) {
+                    maceState = MaceState.THROW_PEARL;
+                    maceTimer = 0;
                 }
             }
+
+            case THROW_PEARL -> {
+                p.setPitch(-90.0f);
+                p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(
+                        p.getYaw(), -90.0f, p.isOnGround(), p.horizontalCollision));
+                p.getInventory().setSelectedSlot(2);
+                mc.interactionManager.interactItem(p, Hand.MAIN_HAND);
+                p.swingHand(Hand.MAIN_HAND);
+                maceState = MaceState.WAIT_PEARL;
+                maceTimer = (int) PEARL_DELAY.value;
+            }
+
             case WAIT_PEARL -> {
-                smoothLookPitch(p, -88.0f, (float)(AIM_SMOOTH.value / 100.0));
+                p.setPitch(-90.0f);
+                p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(
+                        p.getYaw(), -90.0f, p.isOnGround(), p.horizontalCollision));
                 maceTimer--;
-                if (maceTimer <= 0) { maceState = MaceState.THROW_WIND; maceTimer = 0; }
+                if (maceTimer <= 0) maceState = MaceState.THROW_WIND;
             }
+
             case THROW_WIND -> {
-                smoothLookPitch(p, -90.0f, 0.6f);
-                maceTimer++;
-                if (maceTimer >= 2) {
-                    p.getInventory().setSelectedSlot(1);
-                    mc.interactionManager.interactItem(p, Hand.MAIN_HAND);
-                    p.swingHand(Hand.MAIN_HAND);
-                    maceState = MaceState.WAIT_BOOST;
-                    maceTimer = 6;
-                    maceStateTicks = 0;
-                }
+                p.setPitch(-90.0f);
+                p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(
+                        p.getYaw(), -90.0f, p.isOnGround(), p.horizontalCollision));
+                p.getInventory().setSelectedSlot(1);
+                mc.interactionManager.interactItem(p, Hand.MAIN_HAND);
+                p.swingHand(Hand.MAIN_HAND);
+                maceState = MaceState.WAIT_BOOST;
+                maceTimer = 6;
+                maceStateTicks = 0;
             }
+
             case WAIT_BOOST -> {
                 maceTimer--;
                 if (maceTimer <= 0) { maceState = MaceState.GLIDE; maceStateTicks = 0; }
             }
+
             case GLIDE -> {
                 if (maceTarget == null || !maceTarget.isAlive()) { resetMace(mc, p); return; }
                 maceStateTicks++;
-                if (!elytraEquipped) { p.getInventory().setSelectedSlot(3); swapChest(mc, p); elytraEquipped = true; }
+
+                if (!elytraEquipped) {
+                    p.getInventory().setSelectedSlot(3);
+                    swapChest(mc, p);
+                    elytraEquipped = true;
+                }
                 if (!p.isGliding() && !p.isOnGround()) {
                     p.startGliding();
                     p.networkHandler.sendPacket(new ClientCommandC2SPacket(p, ClientCommandC2SPacket.Mode.START_FALL_FLYING));
                 }
+
                 smoothLook(p, maceTarget.getEyePos(), (float)(AIM_SMOOTH.value / 100.0));
+
                 double dist = p.distanceTo(maceTarget);
-                boolean above = p.getY() > maceTarget.getY() + 2.5;
-                if ((dist < 7.0 && above) || (above && p.getVelocity().y < -0.3)) {
-                    maceState = MaceState.PRE_SMASH; maceTimer = 3; maceStateTicks = 0;
-                } else if (p.isOnGround() || maceStateTicks > 120) resetMace(mc, p);
+                boolean above = p.getY() > maceTarget.getY() + 3.0;
+
+                if (SHOWOFF_FLIP.on && maceStateTicks > 8 && maceStateTicks < 16 && !above) {
+                    float flip = (float)(Math.sin(maceStateTicks * Math.PI / 8) * 40);
+                    p.setPitch(p.getPitch() + flip * 0.1f);
+                }
+
+                if ((dist < 8.0 && above) || (above && p.getVelocity().y < -0.3 && dist < 12.0)) {
+                    if (SHOWOFF_SPIN.on) {
+                        maceState = MaceState.SPIN360;
+                        targetSpinYaw = p.getYaw() + 360.0f;
+                        spinStartTick = maceStateTicks;
+                        maceTimer = 0;
+                    } else {
+                        maceState = MaceState.PRE_SMASH;
+                        maceTimer = 3;
+                    }
+                    maceStateTicks = 0;
+                } else if (p.isOnGround() || maceStateTicks > 150) {
+                    resetMace(mc, p);
+                }
             }
+
+            case SPIN360 -> {
+                if (maceTarget == null || !maceTarget.isAlive()) { resetMace(mc, p); return; }
+                maceTimer++;
+                float spinSpeed = 30.0f;
+                float newYaw = p.getYaw() + spinSpeed;
+                p.setYaw(newYaw);
+                p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(
+                        newYaw, p.getPitch(), p.isOnGround(), p.horizontalCollision));
+                if (maceTimer >= 12) {
+                    lookAt(p, maceTarget.getEyePos());
+                    p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(
+                            p.getYaw(), p.getPitch(), p.isOnGround(), p.horizontalCollision));
+                    maceState = MaceState.PRE_SMASH;
+                    maceTimer = 2;
+                }
+                if (maceTimer > 30) resetMace(mc, p);
+            }
+
             case PRE_SMASH -> {
                 if (maceTarget == null || !maceTarget.isAlive()) { resetMace(mc, p); return; }
                 if (elytraEquipped) { swapChest(mc, p); elytraEquipped = false; }
                 p.getInventory().setSelectedSlot(0);
-                smoothLook(p, maceTarget.getEyePos(), 0.5f);
+                lookAt(p, maceTarget.getEyePos());
+                p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(
+                        p.getYaw(), p.getPitch(), p.isOnGround(), p.horizontalCollision));
                 maceTimer--;
                 if (maceTimer <= 0) { maceState = MaceState.SMASH; maceStateTicks = 0; }
             }
+
             case SMASH -> {
                 if (maceTarget == null || !maceTarget.isAlive()) { resetMace(mc, p); return; }
                 p.getInventory().setSelectedSlot(0);
-                smoothLook(p, maceTarget.getEyePos(), 0.6f);
+                lookAt(p, maceTarget.getEyePos());
+                p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(
+                        p.getYaw(), p.getPitch(), p.isOnGround(), p.horizontalCollision));
                 double dist = p.distanceTo(maceTarget);
                 maceStateTicks++;
                 if (dist <= 4.5 && p.getAttackCooldownProgress(0f) >= 0.5f) {
                     mc.interactionManager.attackEntity(p, maceTarget);
                     p.swingHand(Hand.MAIN_HAND);
                 }
-                if (maceStateTicks > 15 || (p.isOnGround() && dist > 5.0)) {
-                    maceState = MaceState.COMBO; maceStateTicks = 0;
+                if (maceStateTicks > 20 || (p.isOnGround() && dist > 5.0)) {
+                    maceState = MaceState.COMBO;
+                    maceStateTicks = 0;
                 }
             }
+
             case COMBO -> {
                 if (maceTarget == null || !maceTarget.isAlive()) { resetMace(mc, p); return; }
-                maceStateTicks++;
                 p.getInventory().setSelectedSlot(0);
-                smoothLook(p, maceTarget.getEyePos(), 0.5f);
-                if (maceStateTicks < 25) {
+                lookAt(p, maceTarget.getEyePos());
+                p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(
+                        p.getYaw(), p.getPitch(), p.isOnGround(), p.horizontalCollision));
+                maceStateTicks++;
+                if (maceStateTicks < 30) {
                     if (p.distanceTo(maceTarget) <= 4.0 && p.getAttackCooldownProgress(0f) >= 0.9f) {
                         mc.interactionManager.attackEntity(p, maceTarget);
                         p.swingHand(Hand.MAIN_HAND);
@@ -425,6 +525,7 @@ public class KingerLol implements ClientModInitializer {
     private static void resetMace(MinecraftClient mc, ClientPlayerEntity p) {
         if (elytraEquipped) { swapChest(mc, p); elytraEquipped = false; }
         maceState = MaceState.IDLE; maceTarget = null; maceTimer = 0; maceStateTicks = 0;
+        stablePitchTicks = 0; targetSpinYaw = 0; spinStartTick = 0;
     }
 
     private static void smoothLook(ClientPlayerEntity p, Vec3d target, float smooth) {
@@ -437,13 +538,6 @@ public class KingerLol implements ClientModInitializer {
         float pitchDiff = wantPitch - p.getPitch();
         p.setYaw(p.getYaw() + yawDiff * smooth);
         p.setPitch(p.getPitch() + pitchDiff * smooth);
-        p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(
-                p.getYaw(), p.getPitch(), p.isOnGround(), p.horizontalCollision));
-    }
-
-    private static void smoothLookPitch(ClientPlayerEntity p, float wantPitch, float smooth) {
-        float diff = wantPitch - p.getPitch();
-        p.setPitch(p.getPitch() + diff * smooth);
         p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(
                 p.getYaw(), p.getPitch(), p.isOnGround(), p.horizontalCollision));
     }
@@ -858,8 +952,7 @@ public class KingerLol implements ClientModInitializer {
                 p.getInventory().setSelectedSlot(glowSlot);
                 BlockHitResult hit = new BlockHitResult(Vec3d.ofCenter(anchor), Direction.UP, anchor, false);
                 lookAt(p, Vec3d.ofCenter(anchor));
-                mc.interactionManager.interactBlock(p, Hand.MAIN_HAND, hit); p.swingHand(Hand.MAIN_HAND);
-                return;
+                mc.interactionManager.interactBlock(p, Hand.MAIN_HAND, hit); p.swingHand(Hand.MAIN_HAND); return;
             }
         }
         BlockHitResult hit = new BlockHitResult(Vec3d.ofCenter(anchor), Direction.UP, anchor, false);
@@ -1204,8 +1297,8 @@ public class KingerLol implements ClientModInitializer {
                     ctx.drawTextWithShadow(tr, w.label(), w.x() + 8, w.y() + (w.h() - 8) / 2, on ? 0xFFFFFFFF : TXT_D);
                     int tx = w.x() + w.w() - 34, ty = w.y() + 6;
                     ctx.fill(tx, ty, tx + 26, ty + 12, bgC);
-                    int cx = on ? tx + 15 : tx + 2;
-                    ctx.fill(cx, ty + 2, cx + 8, ty + 10, 0xFFFFFFFF);
+                    int cx2 = on ? tx + 15 : tx + 2;
+                    ctx.fill(cx2, ty + 2, cx2 + 8, ty + 10, 0xFFFFFFFF);
                 } else if (w.kind() == Kind.VALUE) {
                     ctx.drawTextWithShadow(tr, w.label(), w.x(), w.y() + 7, TXT);
                     ctx.drawTextWithShadow(tr, w.tag().get(), w.x() + w.w() - tr.getWidth(w.tag().get()) - 3, w.y() + 7, ACCENT);
@@ -1224,4 +1317,4 @@ public class KingerLol implements ClientModInitializer {
         }
         @Override public boolean shouldPause() { return false; }
     }
-                }
+            }
