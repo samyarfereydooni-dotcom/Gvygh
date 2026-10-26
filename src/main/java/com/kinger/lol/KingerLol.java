@@ -158,20 +158,9 @@ public class KingerLol implements ClientModInitializer {
     private static float lastHealth = 20f;
     private static int lastDamageTime = -10, tickCounter = 0;
 
-    // ============ MACE KILLER STATE MACHINE (FIXED) ============
     private enum MaceState {
-        IDLE,           // Waiting for target
-        EQUIP,          // Auto-kit arrangement
-        JUMP_PEARL,     // Jump + look down
-        THROW_PEARL,    // Throw pearl at feet
-        LOOK_UP,        // Look up before wind charge
-        THROW_WIND,     // Throw wind charge
-        EQUIP_ELYTRA,   // Put on elytra while rising
-        GLIDE,          // Glide toward target
-        PRE_SMASH,      // Unequip elytra + wait for verification
-        SMASH,          // Attack with mace
-        COMBO,          // Continue attacking
-        RESET           // Cleanup
+        IDLE, EQUIP, JUMP_PEARL, THROW_PEARL, LOOK_UP, THROW_WIND,
+        EQUIP_ELYTRA, GLIDE, PRE_SMASH, SMASH, COMBO, RESET
     }
     private static MaceState maceState = MaceState.IDLE;
     private static int maceTimer = 0, maceStateTicks = 0;
@@ -240,7 +229,7 @@ public class KingerLol implements ClientModInitializer {
         while (guiKey.wasPressed()) if (mc.currentScreen == null) mc.setScreen(new Menu());
         while (autoCmdKey.wasPressed()) {
             if (mc.currentScreen == null && !autoCommandText.isBlank()) {
-                mc.setScreen(new ChatScreen(autoCommandText));
+                mc.setScreen(new ChatScreen(autoCommandText, false));
             }
         }
 
@@ -321,20 +310,13 @@ public class KingerLol implements ClientModInitializer {
         if (storageShowTimer > 0) storageShowTimer--;
     }
 
-    // ============ FIXED MACE KILLER ============
-
     private static void maceKillerFixed(MinecraftClient mc, ClientPlayerEntity p) {
         if (mc.currentScreen != null) return;
 
         switch (maceState) {
             case IDLE -> {
-                // Ensure kit is ready
                 if (!isKitReady(p)) { maceState = MaceState.EQUIP; return; }
-
-                // Must be on ground to start
                 if (!p.isOnGround()) return;
-
-                // Find target
                 PlayerEntity target = null;
                 double bestD = MACE_RANGE.value * MACE_RANGE.value;
                 for (PlayerEntity o : mc.world.getPlayers()) {
@@ -343,13 +325,10 @@ public class KingerLol implements ClientModInitializer {
                     if (d < bestD) { bestD = d; target = o; }
                 }
                 if (target == null) return;
-
                 maceTarget = target;
                 maceState = MaceState.JUMP_PEARL;
                 maceTimer = 0;
                 maceStateTicks = 0;
-
-                // Jump first (natural look)
                 p.jump();
             }
 
@@ -370,41 +349,28 @@ public class KingerLol implements ClientModInitializer {
             }
 
             case JUMP_PEARL -> {
-                // Wait until in the air (jump peak)
                 maceTimer++;
                 if (maceTimer >= 2) {
-                    // Look DOWN at feet (for pearl catch)
                     p.setPitch(85.0f);
                     p.setYaw(preStateYaw);
-
-                    // Send rotation packet
                     p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(preStateYaw, 85.0f, p.isOnGround(), p.horizontalCollision));
-
-                    // Switch to pearl slot
                     p.getInventory().setSelectedSlot(2);
-
                     maceState = MaceState.THROW_PEARL;
                     maceTimer = 0;
                 }
             }
 
             case THROW_PEARL -> {
-                // Throw pearl
                 mc.interactionManager.interactItem(p, Hand.MAIN_HAND);
                 p.swingHand(Hand.MAIN_HAND);
-
-                // Switch to wind charge slot
                 p.getInventory().setSelectedSlot(1);
-
                 maceState = MaceState.LOOK_UP;
                 maceTimer = 0;
             }
 
             case LOOK_UP -> {
-                // Look straight UP
                 p.setPitch(-85.0f);
                 p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(preStateYaw, -85.0f, p.isOnGround(), p.horizontalCollision));
-
                 maceTimer++;
                 if (maceTimer >= 1) {
                     maceState = MaceState.THROW_WIND;
@@ -413,24 +379,20 @@ public class KingerLol implements ClientModInitializer {
             }
 
             case THROW_WIND -> {
-                // Throw wind charge
                 mc.interactionManager.interactItem(p, Hand.MAIN_HAND);
                 p.swingHand(Hand.MAIN_HAND);
-
                 maceState = MaceState.EQUIP_ELYTRA;
                 maceTimer = 0;
                 maceStateTicks = 0;
             }
 
             case EQUIP_ELYTRA -> {
-                // Wait 1 tick for wind charge to boost us
                 maceTimer++;
                 if (maceTimer >= 1) {
                     if (!elytraEquipped) {
                         swapChest(mc, p);
                         elytraEquipped = true;
                     }
-                    // Start gliding
                     if (!p.isGliding()) {
                         p.startGliding();
                         p.networkHandler.sendPacket(new ClientCommandC2SPacket(p, ClientCommandC2SPacket.Mode.START_FALL_FLYING));
@@ -443,26 +405,17 @@ public class KingerLol implements ClientModInitializer {
 
             case GLIDE -> {
                 if (maceTarget == null || !maceTarget.isAlive()) {
-                    // Target lost - just fall and reset
                     resetMace(mc, p);
                     return;
                 }
-
                 maceStateTicks++;
-
-                // Aim at target
                 lookAt(p, maceTarget.getEyePos());
-
-                // Stay in air - jump is handled by wind charge
                 double dist = p.distanceTo(maceTarget);
-
-                // Check if we're above and close
                 boolean above = p.getY() > maceTarget.getY() + 2.5;
                 boolean veryClose = dist < 5.0;
                 boolean falling = p.getVelocity().y < 0;
 
                 if (above && (veryClose || falling)) {
-                    // Ready for smash
                     if (elytraEquipped) {
                         swapChest(mc, p);
                         elytraEquipped = false;
@@ -476,7 +429,6 @@ public class KingerLol implements ClientModInitializer {
             }
 
             case PRE_SMASH -> {
-                // Wait 2 ticks for server to register elytra removal
                 maceTimer--;
                 if (maceTimer <= 0) {
                     p.getInventory().setSelectedSlot(0);
@@ -489,12 +441,9 @@ public class KingerLol implements ClientModInitializer {
                     resetMace(mc, p);
                     return;
                 }
-
                 p.getInventory().setSelectedSlot(0);
                 lookAt(p, maceTarget.getEyePos());
-
                 if (p.distanceTo(maceTarget) <= 3.2 && p.getAttackCooldownProgress(0f) >= 0.85f) {
-                    // Attack
                     mc.interactionManager.attackEntity(p, maceTarget);
                     p.swingHand(Hand.MAIN_HAND);
                     maceState = MaceState.COMBO;
@@ -509,7 +458,6 @@ public class KingerLol implements ClientModInitializer {
                     resetMace(mc, p);
                     return;
                 }
-
                 maceStateTicks++;
                 if (maceStateTicks < 20) {
                     p.getInventory().setSelectedSlot(0);
@@ -523,9 +471,7 @@ public class KingerLol implements ClientModInitializer {
                 }
             }
 
-            case RESET -> {
-                resetMace(mc, p);
-            }
+            case RESET -> resetMace(mc, p);
         }
     }
 
@@ -555,8 +501,6 @@ public class KingerLol implements ClientModInitializer {
     private static void swapChest(MinecraftClient mc, ClientPlayerEntity p) {
         mc.interactionManager.clickSlot(p.playerScreenHandler.syncId, 6, 3, SlotActionType.SWAP, p);
     }
-
-    // ============ REST OF FUNCTIONS (unchanged) ============
 
     private static void spawnerProtect(MinecraftClient mc, ClientPlayerEntity p) {
         if (mc.currentScreen != null || spawnerCooldown > 0) { if (spawnerCooldown > 0) spawnerCooldown--; return; }
@@ -704,7 +648,6 @@ public class KingerLol implements ClientModInitializer {
                 float targetYaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
                 float targetPitch = (float) -Math.toDegrees(Math.atan2(dy, flat));
                 p.setSneaking(true);
-                p.networkHandler.sendPacket(new ClientCommandC2SPacket(p, ClientCommandC2SPacket.Mode.PRESS_SHIFT_KEY));
                 p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(targetYaw, targetPitch, p.isOnGround(), p.horizontalCollision));
                 float oldYaw = p.getYaw(), oldPitch = p.getPitch();
                 p.setYaw(targetYaw); p.setPitch(targetPitch);
@@ -717,7 +660,6 @@ public class KingerLol implements ClientModInitializer {
                 }
                 p.setYaw(oldYaw); p.setPitch(oldPitch);
                 p.setSneaking(false);
-                p.networkHandler.sendPacket(new ClientCommandC2SPacket(p, ClientCommandC2SPacket.Mode.RELEASE_SHIFT_KEY));
                 p.getInventory().setSelectedSlot(oldSlot);
             }
         }
@@ -1205,8 +1147,9 @@ public class KingerLol implements ClientModInitializer {
 
         if (BASE_FINDER.on && !chestCache.isEmpty()) {
             int cx = sw / 2, cy = sh / 2;
+            Vec3d myPos = new Vec3d(p.getX(), p.getY(), p.getZ());
             for (BlockPos chestPos : chestCache) {
-                double d = p.getPos().distanceTo(Vec3d.ofCenter(chestPos));
+                double d = myPos.distanceTo(Vec3d.ofCenter(chestPos));
                 if (d > 512) continue;
                 int[] sc = projectToScreen(Vec3d.ofCenter(chestPos), camPos, camYaw, camPitch, sw, sh, focal);
                 if (sc == null) continue;
@@ -1270,8 +1213,6 @@ public class KingerLol implements ClientModInitializer {
             }
         }
     }
-
-    // ============ MENU ============
 
     enum Kind { TAB, TOGGLE, ACTION, STEP, VALUE }
     record Widget(int x, int y, int w, int h, String label, Kind kind, BooleanSupplier active, String desc, Supplier<String> tag) {}
@@ -1413,4 +1354,4 @@ public class KingerLol implements ClientModInitializer {
         }
         @Override public boolean shouldPause() { return false; }
     }
-        }
+            }
