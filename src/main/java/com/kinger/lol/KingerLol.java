@@ -9,15 +9,19 @@ import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.entity.BarrelBlockEntity;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.ChestBlockEntity;
+import net.minecraft.block.entity.ShulkerBoxBlockEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.client.gui.screen.DeathScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.GenericContainerScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.client.option.KeyBinding;
@@ -55,10 +59,10 @@ import java.util.function.Supplier;
 public class KingerLol implements ClientModInitializer {
 
     public static final String NAME = "Kinger";
-    public static final String VERSION = "v500Q";
+    public static final String VERSION = "vINFI";
 
     enum Cat {
-        COMBAT("Combat"), MACE("Mace Killer"), CRYSTAL("Crystal"),
+        COMBAT("Combat"), MACE("Mace Killer"), CRYSTAL("Crystal"), BASE("Base Finder"),
         SMP("SMP"), MOVEMENT("Movement"), RENDER("Render"), MISC("Misc"), HUD("HUD");
         final String label;
         Cat(String label) { this.label = label; }
@@ -81,23 +85,32 @@ public class KingerLol implements ClientModInitializer {
         void change(int dir) { value = Math.max(min, Math.min(max, value + dir * step)); }
     }
 
-    static final Mod KILLAURA = new Mod("Kill Aura", "Silent + smoothing", Cat.COMBAT, false, false);
-    static final Mod AIMASSIST = new Mod("Aim Assist", "GCD human aim", Cat.COMBAT, true, false);
-    static final Mod CRITICALS = new Mod("Criticals", "Smart crits", Cat.COMBAT, true, false);
-    static final Mod HITSELECT = new Mod("Hit Select", "Only land hits", Cat.COMBAT, true, false);
-    static final Mod SHIELDBREAKER = new Mod("Shield Breaker", "Axe swap", Cat.COMBAT, true, false);
-    static final Mod VELOCITY = new Mod("Velocity", "Anti-KB", Cat.COMBAT, true, false);
+    static final Mod KILLAURA = new Mod("Kill Aura", "Silent + GCD", Cat.COMBAT, false, false);
+    static final Mod W_TAP = new Mod("Auto W-Tap", "Sprint reset", Cat.COMBAT, true, false);
+    static final Mod AIMASSIST = new Mod("Aim Assist", "Smooth aim", Cat.COMBAT, true, false);
+    static final Mod CRITICALS = new Mod("Criticals", "Legit crits", Cat.COMBAT, true, false);
+    static final Mod HITSELECT = new Mod("Hit Select", "Only real hits", Cat.COMBAT, true, false);
+    static final Mod SHIELDBREAKER = new Mod("Shield Breaker", "Axe on shield", Cat.COMBAT, true, false);
+    static final Mod VELOCITY = new Mod("Velocity", "Randomized anti-KB", Cat.COMBAT, true, false);
     static final Mod AUTOSWORD = new Mod("Auto Sword", "Best weapon", Cat.COMBAT, true, false);
-    static final Mod BOWAIMBOT = new Mod("Bow Aimbot", "Predict arrow", Cat.COMBAT, true, false);
-    static final Mod ANTIBOT = new Mod("Anti Bot", "Ignore NPCs", Cat.COMBAT, true, false);
+    static final Mod BOWAIMBOT = new Mod("Bow Aimbot", "Arrow prediction", Cat.COMBAT, true, false);
+    static final Mod AUTOBOW = new Mod("Auto Bow Release", "Full charge release", Cat.COMBAT, true, false);
+    static final Mod ANTIBOT = new Mod("Anti Bot", "Ignores NPCs", Cat.COMBAT, true, false);
 
-    static final Mod MACE_KILLER = new Mod("Auto Mace Killer", "Full combo", Cat.MACE, false, false);
+    static final Mod MACE_KILLER = new Mod("Auto Mace Killer", "Pearl catch combo", Cat.MACE, false, false);
     static final Num MACE_RANGE = new Num("Target Range", "Radius", Cat.MACE, 20.0, 5.0, 50.0, 1.0);
-    static final Num PEARL_DELAY = new Num("Pearl Delay", "Ticks", Cat.MACE, 3.0, 1.0, 10.0, 1.0);
+    static final Num PEARL_DELAY = new Num("Pearl Delay", "Ticks", Cat.MACE, 2.0, 1.0, 10.0, 1.0);
+    static final Num WIND_DELAY = new Num("Wind Delay", "Ticks after pearl", Cat.MACE, 3.0, 1.0, 10.0, 1.0);
 
     static final Mod AUTOCRYSTAL = new Mod("Auto Crystal", "Place+break", Cat.CRYSTAL, false, false);
     static final Mod ANCHOR_AURA = new Mod("Anchor Aura", "Auto anchors", Cat.CRYSTAL, false, false);
     static final Mod AUTOTRAP = new Mod("Auto Trap", "Obsidian trap", Cat.CRYSTAL, false, false);
+
+    static final Mod BASE_FINDER = new Mod("Base Finder", "Chests + tracers", Cat.BASE, false, false);
+    static final Mod CHEST_ESP = new Mod("Chest ESP", "Glow chests", Cat.BASE, true, false);
+    static final Mod AUTO_MINE_WALK = new Mod("Auto Mine Walk", "Mines + walks", Cat.BASE, false, false);
+    static final Mod STORAGE = new Mod("Storage Finder", "Chat list", Cat.BASE, false, true);
+    static final Num BASE_RADIUS = new Num("Base Radius", "Scan radius", Cat.BASE, 24, 8, 32, 1);
 
     static final Mod AUTOTOTEM = new Mod("Auto Totem", "Instant", Cat.SMP, true, false);
     static final Mod AUTOARMOR = new Mod("Auto Armor", "Best armor", Cat.SMP, true, false);
@@ -107,19 +120,18 @@ public class KingerLol implements ClientModInitializer {
     static final Mod NOSLOW = new Mod("No Slow", "No slow", Cat.SMP, true, false);
     static final Mod AUTOSHIELD = new Mod("Auto Shield", "Idle shield", Cat.SMP, false, false);
     static final Mod CHESTSTEALER = new Mod("Chest Stealer", "Auto take", Cat.SMP, false, false);
-    static final Mod STORAGE = new Mod("Storage Finder", "Find chests", Cat.SMP, false, true);
+    static final Mod SPAWNER_PROTECT = new Mod("Spawner Protect", "Mine spawner when player near", Cat.SMP, false, false);
 
     static final Mod SPRINT = new Mod("Auto Sprint", "Sprint", Cat.MOVEMENT, true, false);
     static final Mod NOFALL = new Mod("No Fall", "No fall dmg", Cat.MOVEMENT, true, false);
     static final Mod STEP = new Mod("Step", "Auto step", Cat.MOVEMENT, true, false);
-    static final Mod SCAFFOLD = new Mod("Scaffold", "Auto bridge", Cat.MOVEMENT, false, false);
+    static final Mod SCAFFOLD = new Mod("God Scaffold", "Legit bridge", Cat.MOVEMENT, false, false);
     static final Mod BUNNYHOP = new Mod("Bunny Hop", "Jump", Cat.MOVEMENT, false, false);
     static final Mod ANTIAFK = new Mod("Anti AFK", "Stay active", Cat.MOVEMENT, true, false);
 
     static final Mod FULLBRIGHT = new Mod("Fullbright", "See dark", Cat.RENDER, true, false);
     static final Mod PLAYERESP = new Mod("Player ESP", "Glow", Cat.RENDER, true, false);
     static final Mod TRACERS = new Mod("Tracers", "Lines", Cat.RENDER, true, false);
-    static final Mod CUSTOM_CROSSHAIR = new Mod("Custom Crosshair", "Chad crosshair", Cat.RENDER, true, false);
 
     static final Mod AUTOLOGIN = new Mod("Auto Login", "/login", Cat.MISC, false, true);
     static final Mod AUTOREGISTER = new Mod("Auto Register", "/register", Cat.MISC, false, true);
@@ -130,27 +142,46 @@ public class KingerLol implements ClientModInitializer {
     static final Mod PING_HUD = new Mod("Ping", "Ping", Cat.HUD, true, false);
     static final Mod FPS_HUD = new Mod("FPS", "FPS", Cat.HUD, true, false);
 
-    static final Num AURA_RANGE = new Num("Aura Range", "Attack range", Cat.COMBAT, 4.5, 3.0, 6.0, 0.5);
-    static final Num AIM_SPEED = new Num("Aim Speed", "1-100", Cat.COMBAT, 35, 1, 100, 5);
-    static final Num REACH = new Num("Reach", "Reach", Cat.COMBAT, 3.0, 3.0, 6.0, 0.5);
-    static final Num AIM_MODE = new Num("Aim Mode", "0=L 1=B 2=R", Cat.COMBAT, 1, 0, 2, 1);
-    static final Num STORAGE_CHUNKS = new Num("Storage Chunks", "Radius", Cat.SMP, 32, 8, 32, 1);
+    static final Num AURA_RANGE = new Num("Aura Range", "Attack range", Cat.COMBAT, 3.1, 3.0, 6.0, 0.1);
+    static final Num AIM_SPEED = new Num("Aim Speed", "1-100", Cat.COMBAT, 40, 1, 100, 5);
+    static final Num REACH = new Num("Reach", "Reach", Cat.COMBAT, 3.0, 3.0, 3.2, 0.1);
+    static final Num AIM_MODE = new Num("Aim Mode", "0=L 1=B 2=R", Cat.COMBAT, 0, 0, 2, 1);
 
     private static KeyBinding guiKey;
+    private static KeyBinding autoCmdKey;
+    static String autoCommandText = "/sell hand";
     static Cat lastTab = Cat.MACE;
     private static int totemCooldown = 0, armorCooldown = 0, potCooldown = 0;
     private static int auraCooldown = 0, trapCooldown = 0, stepCooldown = 0, kitCooldown = 0, chestCooldown = 0;
-    private static int afkTimer = 0;
+    private static int afkTimer = 0, scaffoldTimer = 0, mineCooldown = 0, baseScanCooldown = 0;
+    private static int wTapTimer = 0, spawnerCooldown = 0;
     private static float lastHealth = 20f;
     private static int lastDamageTime = -10, tickCounter = 0;
 
-    private enum MaceState { IDLE, EQUIP, THROW_PEARL, THROW_WIND, GLIDE, SMASH, COMBO }
+    // ============ MACE KILLER STATE MACHINE (FIXED) ============
+    private enum MaceState {
+        IDLE,           // Waiting for target
+        EQUIP,          // Auto-kit arrangement
+        JUMP_PEARL,     // Jump + look down
+        THROW_PEARL,    // Throw pearl at feet
+        LOOK_UP,        // Look up before wind charge
+        THROW_WIND,     // Throw wind charge
+        EQUIP_ELYTRA,   // Put on elytra while rising
+        GLIDE,          // Glide toward target
+        PRE_SMASH,      // Unequip elytra + wait for verification
+        SMASH,          // Attack with mace
+        COMBO,          // Continue attacking
+        RESET           // Cleanup
+    }
     private static MaceState maceState = MaceState.IDLE;
     private static int maceTimer = 0, maceStateTicks = 0;
     private static PlayerEntity maceTarget;
     private static boolean elytraEquipped = false;
+    private static float preStateYaw = 0, preStatePitch = 0;
+    private static Vec3d pearlTeleportPos = null;
 
     private static final List<BlockPos> storageResults = new ArrayList<>();
+    private static final List<BlockPos> chestCache = new ArrayList<>();
     private static int storageShowTimer = 0;
 
     @Override
@@ -160,6 +191,8 @@ public class KingerLol implements ClientModInitializer {
         KeyBinding.Category category = KeyBinding.Category.create(Identifier.of("kingerlol", "main"));
         guiKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "KingerLol Menu", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_KP_5, category));
+        autoCmdKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "Kinger Auto Command", InputUtil.Type.KEYSYM, GLFW.GLFW_KEY_K, category));
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             dispatcher.register(ClientCommandManager.literal("kingerlol").executes(ctx -> {
@@ -178,6 +211,7 @@ public class KingerLol implements ClientModInitializer {
             Properties pr = new Properties();
             for (Mod m : MODS) if (!m.action) pr.setProperty("mod." + m.name.replace(" ", "_"), String.valueOf(m.on));
             for (Num n : NUMS) pr.setProperty("num." + n.name.replace(" ", "_"), String.valueOf(n.value));
+            pr.setProperty("autocmd", autoCommandText);
             try (OutputStream os = Files.newOutputStream(configPath())) { pr.store(os, NAME); }
         } catch (Exception ignored) {}
     }
@@ -188,6 +222,7 @@ public class KingerLol implements ClientModInitializer {
             try (InputStream is = Files.newInputStream(path)) { pr.load(is); }
             for (Mod m : MODS) { String v = pr.getProperty("mod." + m.name.replace(" ", "_")); if (v != null) m.on = Boolean.parseBoolean(v); }
             for (Num n : NUMS) { String v = pr.getProperty("num." + n.name.replace(" ", "_")); if (v != null) n.value = Double.parseDouble(v.trim()); }
+            String ac = pr.getProperty("autocmd"); if (ac != null) autoCommandText = ac;
         } catch (Exception ignored) {}
     }
 
@@ -203,6 +238,11 @@ public class KingerLol implements ClientModInitializer {
         tickCounter++;
 
         while (guiKey.wasPressed()) if (mc.currentScreen == null) mc.setScreen(new Menu());
+        while (autoCmdKey.wasPressed()) {
+            if (mc.currentScreen == null && !autoCommandText.isBlank()) {
+                mc.setScreen(new ChatScreen(autoCommandText));
+            }
+        }
 
         float hp = p.getHealth();
         boolean tookDamage = hp < lastHealth - 0.1f;
@@ -231,6 +271,7 @@ public class KingerLol implements ClientModInitializer {
         if (AUTOGAPPLE.on) autoGapple(mc, p);
         if (AUTORESPAWN.on && mc.currentScreen instanceof DeathScreen) p.requestRespawn();
         if (CHESTSTEALER.on) chestStealer(mc, p);
+        if (SPAWNER_PROTECT.on) spawnerProtect(mc, p);
 
         if (SPRINT.on && mc.options.forwardKey.isPressed() && !p.isSneaking() && !p.isUsingItem()) mc.options.sprintKey.setPressed(true);
         if (NOSLOW.on) noSlow(p);
@@ -239,18 +280,33 @@ public class KingerLol implements ClientModInitializer {
         if (STEP.on) step(mc, p);
         if (SCAFFOLD.on) scaffold(mc, p);
         if (BUNNYHOP.on && mc.options.forwardKey.isPressed() && p.isOnGround()) p.jump();
+        if (AUTO_MINE_WALK.on) autoMineWalk(mc, p);
+
+        if (scaffoldTimer > 0) {
+            scaffoldTimer--;
+            if (scaffoldTimer <= 0) mc.options.backKey.setPressed(false);
+        }
+        if (wTapTimer > 0) {
+            wTapTimer--;
+            if (wTapTimer <= 0) mc.options.sprintKey.setPressed(false);
+        }
 
         if (FULLBRIGHT.on) fullbright(p);
         if (PLAYERESP.on) playerEsp(mc);
 
+        if (BASE_FINDER.on || CHEST_ESP.on) {
+            if (baseScanCooldown > 0) baseScanCooldown--;
+            else { scanChests(mc, p); baseScanCooldown = 40; }
+        }
+
         if (AUTOSWORD.on) autoSword(mc, p);
         if (BOWAIMBOT.on) bowAimbot(mc, p);
+        if (AUTOBOW.on) autoBowRelease(mc, p);
         if (AIMASSIST.on) aimAssist(mc, p);
         if (!MACE_KILLER.on) killAura(mc, p);
 
         if (VELOCITY.on) {
-            int ping = getPing(mc);
-            float reduce = ping > 100 ? 0.3f : 0.4f;
+            float reduce = 0.15f + (new Random().nextFloat() * 0.15f);
             Vec3d v = p.getVelocity();
             if (tookDamage) p.setVelocity(v.x * reduce, v.y, v.z * reduce);
             if (tickCounter - lastDamageTime <= 1 && p.isOnGround() && !p.isJumping()) p.jump();
@@ -260,31 +316,422 @@ public class KingerLol implements ClientModInitializer {
         if (AUTOCRYSTAL.on) autoCrystal(mc, p);
         if (ANCHOR_AURA.on) anchorAura(mc, p);
         if (AUTOTRAP.on) autoTrap(mc, p);
-        if (MACE_KILLER.on) maceKiller(mc, p);
+        if (MACE_KILLER.on) maceKillerFixed(mc, p);
 
         if (storageShowTimer > 0) storageShowTimer--;
     }
 
-    static void findStorage(MinecraftClient mc) {
-        ClientPlayerEntity p = mc.player;
-        if (p == null || mc.world == null) return;
-        storageResults.clear();
+    // ============ FIXED MACE KILLER ============
+
+    private static void maceKillerFixed(MinecraftClient mc, ClientPlayerEntity p) {
+        if (mc.currentScreen != null) return;
+
+        switch (maceState) {
+            case IDLE -> {
+                // Ensure kit is ready
+                if (!isKitReady(p)) { maceState = MaceState.EQUIP; return; }
+
+                // Must be on ground to start
+                if (!p.isOnGround()) return;
+
+                // Find target
+                PlayerEntity target = null;
+                double bestD = MACE_RANGE.value * MACE_RANGE.value;
+                for (PlayerEntity o : mc.world.getPlayers()) {
+                    if (o == p || !o.isAlive() || o.isSpectator() || isBot(o, mc)) continue;
+                    double d = p.squaredDistanceTo(o);
+                    if (d < bestD) { bestD = d; target = o; }
+                }
+                if (target == null) return;
+
+                maceTarget = target;
+                maceState = MaceState.JUMP_PEARL;
+                maceTimer = 0;
+                maceStateTicks = 0;
+
+                // Jump first (natural look)
+                p.jump();
+            }
+
+            case EQUIP -> {
+                if (kitCooldown > 0) { kitCooldown--; return; }
+                int mS = findItemSlot(p, Items.MACE), wS = findItemSlot(p, Items.WIND_CHARGE);
+                int pS = findItemSlot(p, Items.ENDER_PEARL), eS = findItemSlot(p, Items.ELYTRA);
+                if (mS == -1 || wS == -1 || pS == -1 || eS == -1) {
+                    p.sendMessage(Text.literal("§cMissing: Mace / Wind Charge / Pearl / Elytra"), true);
+                    MACE_KILLER.on = false; maceState = MaceState.IDLE; return;
+                }
+                int sync = p.playerScreenHandler.syncId;
+                if (mS != 0) { mc.interactionManager.clickSlot(sync, invToHandlerSlot(mS), 0, SlotActionType.SWAP, p); kitCooldown = 3; return; }
+                if (wS != 1) { mc.interactionManager.clickSlot(sync, invToHandlerSlot(wS), 1, SlotActionType.SWAP, p); kitCooldown = 3; return; }
+                if (pS != 2) { mc.interactionManager.clickSlot(sync, invToHandlerSlot(pS), 2, SlotActionType.SWAP, p); kitCooldown = 3; return; }
+                if (eS != 3) { mc.interactionManager.clickSlot(sync, invToHandlerSlot(eS), 3, SlotActionType.SWAP, p); kitCooldown = 3; return; }
+                maceState = MaceState.IDLE;
+            }
+
+            case JUMP_PEARL -> {
+                // Wait until in the air (jump peak)
+                maceTimer++;
+                if (maceTimer >= 2) {
+                    // Look DOWN at feet (for pearl catch)
+                    p.setPitch(85.0f);
+                    p.setYaw(preStateYaw);
+
+                    // Send rotation packet
+                    p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(preStateYaw, 85.0f, p.isOnGround(), p.horizontalCollision));
+
+                    // Switch to pearl slot
+                    p.getInventory().setSelectedSlot(2);
+
+                    maceState = MaceState.THROW_PEARL;
+                    maceTimer = 0;
+                }
+            }
+
+            case THROW_PEARL -> {
+                // Throw pearl
+                mc.interactionManager.interactItem(p, Hand.MAIN_HAND);
+                p.swingHand(Hand.MAIN_HAND);
+
+                // Switch to wind charge slot
+                p.getInventory().setSelectedSlot(1);
+
+                maceState = MaceState.LOOK_UP;
+                maceTimer = 0;
+            }
+
+            case LOOK_UP -> {
+                // Look straight UP
+                p.setPitch(-85.0f);
+                p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(preStateYaw, -85.0f, p.isOnGround(), p.horizontalCollision));
+
+                maceTimer++;
+                if (maceTimer >= 1) {
+                    maceState = MaceState.THROW_WIND;
+                    maceTimer = 0;
+                }
+            }
+
+            case THROW_WIND -> {
+                // Throw wind charge
+                mc.interactionManager.interactItem(p, Hand.MAIN_HAND);
+                p.swingHand(Hand.MAIN_HAND);
+
+                maceState = MaceState.EQUIP_ELYTRA;
+                maceTimer = 0;
+                maceStateTicks = 0;
+            }
+
+            case EQUIP_ELYTRA -> {
+                // Wait 1 tick for wind charge to boost us
+                maceTimer++;
+                if (maceTimer >= 1) {
+                    if (!elytraEquipped) {
+                        swapChest(mc, p);
+                        elytraEquipped = true;
+                    }
+                    // Start gliding
+                    if (!p.isGliding()) {
+                        p.startGliding();
+                        p.networkHandler.sendPacket(new ClientCommandC2SPacket(p, ClientCommandC2SPacket.Mode.START_FALL_FLYING));
+                    }
+                    maceState = MaceState.GLIDE;
+                    maceTimer = 0;
+                    maceStateTicks = 0;
+                }
+            }
+
+            case GLIDE -> {
+                if (maceTarget == null || !maceTarget.isAlive()) {
+                    // Target lost - just fall and reset
+                    resetMace(mc, p);
+                    return;
+                }
+
+                maceStateTicks++;
+
+                // Aim at target
+                lookAt(p, maceTarget.getEyePos());
+
+                // Stay in air - jump is handled by wind charge
+                double dist = p.distanceTo(maceTarget);
+
+                // Check if we're above and close
+                boolean above = p.getY() > maceTarget.getY() + 2.5;
+                boolean veryClose = dist < 5.0;
+                boolean falling = p.getVelocity().y < 0;
+
+                if (above && (veryClose || falling)) {
+                    // Ready for smash
+                    if (elytraEquipped) {
+                        swapChest(mc, p);
+                        elytraEquipped = false;
+                    }
+                    maceState = MaceState.PRE_SMASH;
+                    maceTimer = 2;
+                    maceStateTicks = 0;
+                } else if (p.isOnGround() || maceStateTicks > 100) {
+                    resetMace(mc, p);
+                }
+            }
+
+            case PRE_SMASH -> {
+                // Wait 2 ticks for server to register elytra removal
+                maceTimer--;
+                if (maceTimer <= 0) {
+                    p.getInventory().setSelectedSlot(0);
+                    maceState = MaceState.SMASH;
+                }
+            }
+
+            case SMASH -> {
+                if (maceTarget == null || !maceTarget.isAlive()) {
+                    resetMace(mc, p);
+                    return;
+                }
+
+                p.getInventory().setSelectedSlot(0);
+                lookAt(p, maceTarget.getEyePos());
+
+                if (p.distanceTo(maceTarget) <= 3.2 && p.getAttackCooldownProgress(0f) >= 0.85f) {
+                    // Attack
+                    mc.interactionManager.attackEntity(p, maceTarget);
+                    p.swingHand(Hand.MAIN_HAND);
+                    maceState = MaceState.COMBO;
+                    maceStateTicks = 0;
+                } else if (p.isOnGround()) {
+                    resetMace(mc, p);
+                }
+            }
+
+            case COMBO -> {
+                if (maceTarget == null || !maceTarget.isAlive()) {
+                    resetMace(mc, p);
+                    return;
+                }
+
+                maceStateTicks++;
+                if (maceStateTicks < 20) {
+                    p.getInventory().setSelectedSlot(0);
+                    lookAt(p, maceTarget.getEyePos());
+                    if (p.distanceTo(maceTarget) <= 3.5 && p.getAttackCooldownProgress(0f) >= 0.9f) {
+                        mc.interactionManager.attackEntity(p, maceTarget);
+                        p.swingHand(Hand.MAIN_HAND);
+                    }
+                } else {
+                    resetMace(mc, p);
+                }
+            }
+
+            case RESET -> {
+                resetMace(mc, p);
+            }
+        }
+    }
+
+    private static void resetMace(MinecraftClient mc, ClientPlayerEntity p) {
+        if (elytraEquipped) {
+            swapChest(mc, p);
+            elytraEquipped = false;
+        }
+        maceState = MaceState.IDLE;
+        maceTarget = null;
+        maceTimer = 0;
+        maceStateTicks = 0;
+        pearlTeleportPos = null;
+    }
+
+    private static boolean isKitReady(ClientPlayerEntity p) {
+        return p.getInventory().getStack(0).isOf(Items.MACE) &&
+               p.getInventory().getStack(1).isOf(Items.WIND_CHARGE) &&
+               p.getInventory().getStack(2).isOf(Items.ENDER_PEARL) &&
+               p.getInventory().getStack(3).isOf(Items.ELYTRA);
+    }
+    private static int findItemSlot(ClientPlayerEntity p, Item item) {
+        for (int i = 0; i < 36; i++) if (p.getInventory().getStack(i).isOf(item)) return i;
+        return -1;
+    }
+    private static int invToHandlerSlot(int s) { return s < 9 ? 36 + s : s; }
+    private static void swapChest(MinecraftClient mc, ClientPlayerEntity p) {
+        mc.interactionManager.clickSlot(p.playerScreenHandler.syncId, 6, 3, SlotActionType.SWAP, p);
+    }
+
+    // ============ REST OF FUNCTIONS (unchanged) ============
+
+    private static void spawnerProtect(MinecraftClient mc, ClientPlayerEntity p) {
+        if (mc.currentScreen != null || spawnerCooldown > 0) { if (spawnerCooldown > 0) spawnerCooldown--; return; }
+        boolean danger = false;
+        for (PlayerEntity o : mc.world.getPlayers()) {
+            if (o == p || !o.isAlive() || isBot(o, mc)) continue;
+            if (p.squaredDistanceTo(o) < 900) { danger = true; break; }
+        }
+        if (!danger) return;
+        BlockPos spawner = null;
+        BlockPos base = p.getBlockPos();
+        double best = 144;
+        for (int dx = -12; dx <= 12; dx++) {
+            for (int dy = -6; dy <= 6; dy++) {
+                for (int dz = -12; dz <= 12; dz++) {
+                    BlockPos pos = base.add(dx, dy, dz);
+                    if (mc.world.getBlockState(pos).isOf(Blocks.SPAWNER)) {
+                        double d = p.squaredDistanceTo(pos.toCenterPos());
+                        if (d < best) { best = d; spawner = pos; }
+                    }
+                }
+            }
+        }
+        if (spawner == null) return;
+        Vec3d center = Vec3d.ofCenter(spawner);
+        Vec3d eye = p.getEyePos();
+        double ddx = center.x - eye.x, ddy = center.y - eye.y, ddz = center.z - eye.z;
+        double flat = Math.sqrt(ddx * ddx + ddz * ddz);
+        float targetYaw = (float)(Math.toDegrees(Math.atan2(ddz, ddx)) - 90.0);
+        float targetPitch = (float)-Math.toDegrees(Math.atan2(ddy, flat));
+        p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(targetYaw, targetPitch, p.isOnGround(), p.horizontalCollision));
+        float oldYaw = p.getYaw(), oldPitch = p.getPitch();
+        p.setYaw(targetYaw); p.setPitch(targetPitch);
+        mc.interactionManager.updateBlockBreakingProgress(spawner, Direction.UP);
+        p.swingHand(Hand.MAIN_HAND);
+        p.setYaw(oldYaw); p.setPitch(oldPitch);
+        spawnerCooldown = 1 + new Random().nextInt(2);
+    }
+
+    private static void autoBowRelease(MinecraftClient mc, ClientPlayerEntity p) {
+        if (mc.currentScreen != null || !p.isUsingItem()) return;
+        if (!p.getActiveItem().isOf(Items.BOW)) return;
+        if (p.getItemUseTime() >= 20) mc.interactionManager.stopUsingItem(p);
+    }
+
+    private static void scanChests(MinecraftClient mc, ClientPlayerEntity p) {
+        chestCache.clear();
         ChunkPos center = p.getChunkPos();
-        int radius = (int) STORAGE_CHUNKS.value;
+        int radius = (int) BASE_RADIUS.value;
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
                 Chunk chunk = mc.world.getChunk(center.x + dx, center.z + dz, ChunkStatus.FULL, false);
                 if (chunk == null) continue;
                 for (BlockPos pos : chunk.getBlockEntityPositions()) {
                     BlockEntity be = mc.world.getBlockEntity(pos);
-                    if (be instanceof ChestBlockEntity) storageResults.add(pos.toImmutable());
+                    if (be instanceof ChestBlockEntity || be instanceof BarrelBlockEntity || be instanceof ShulkerBoxBlockEntity) {
+                        chestCache.add(pos.toImmutable());
+                    }
                 }
             }
         }
         BlockPos me = p.getBlockPos();
-        storageResults.sort(Comparator.comparingDouble(b -> b.getSquaredDistance(me)));
-        p.sendMessage(Text.literal("§b═══ STORAGE v500Q ═══"), false);
-        p.sendMessage(Text.literal("§fFound §b" + storageResults.size() + "§f chests in §b" + radius + "§f chunks"), false);
+        chestCache.sort(Comparator.comparingDouble(b -> b.getSquaredDistance(me)));
+    }
+
+    private static void autoMineWalk(MinecraftClient mc, ClientPlayerEntity p) {
+        if (mc.currentScreen != null || mineCooldown > 0) { if (mineCooldown > 0) mineCooldown--; return; }
+        Direction facing = p.getHorizontalFacing();
+        BlockPos feetPos = p.getBlockPos();
+        BlockPos forwardFeet = feetPos.offset(facing);
+        BlockPos forwardHead = forwardFeet.up();
+        BlockPos forwardFloor = forwardFeet.down();
+        BlockPos target = null;
+        if (!mc.world.getBlockState(forwardHead).isAir() && isMineable(mc.world.getBlockState(forwardHead))) target = forwardHead;
+        else if (!mc.world.getBlockState(forwardFeet).isAir() && isMineable(mc.world.getBlockState(forwardFeet))) target = forwardFeet;
+        if (target == null) {
+            mc.options.forwardKey.setPressed(true);
+            mc.options.attackKey.setPressed(false);
+            if (!mc.world.getBlockState(forwardFloor).isSolidBlock(mc.world, forwardFloor)
+                && mc.world.getBlockState(feetPos.down()).isSolidBlock(mc.world, feetPos.down())
+                && p.isOnGround()) p.jump();
+            mineCooldown = 0;
+            return;
+        }
+        Vec3d center = Vec3d.ofCenter(target);
+        Vec3d eye = p.getEyePos();
+        double dx = center.x - eye.x, dy = center.y - eye.y, dz = center.z - eye.z;
+        double flat = Math.sqrt(dx * dx + dz * dz);
+        float yaw = (float)(Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
+        float pitch = (float)-Math.toDegrees(Math.atan2(dy, flat));
+        p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(yaw, pitch, p.isOnGround(), p.horizontalCollision));
+        Direction breakFace = null;
+        for (Direction d : new Direction[]{Direction.UP, Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST, Direction.DOWN}) {
+            BlockPos neighbor = target.offset(d);
+            if (!mc.world.getBlockState(neighbor).isAir()) { breakFace = d; break; }
+        }
+        if (breakFace == null) breakFace = Direction.UP;
+        mc.interactionManager.updateBlockBreakingProgress(target, breakFace);
+        p.swingHand(Hand.MAIN_HAND);
+        mc.options.forwardKey.setPressed(false);
+        mc.options.attackKey.setPressed(false);
+        mineCooldown = 1 + new Random().nextInt(2);
+    }
+
+    private static boolean isMineable(BlockState st) {
+        return !st.isOf(Blocks.BEDROCK) && !st.isOf(Blocks.OBSIDIAN) && !st.isOf(Blocks.END_PORTAL_FRAME)
+            && !st.isOf(Blocks.END_PORTAL) && !st.isOf(Blocks.END_GATEWAY) && !st.isOf(Blocks.BARRIER)
+            && !st.isOf(Blocks.COMMAND_BLOCK) && !st.isOf(Blocks.CHAIN_COMMAND_BLOCK)
+            && !st.isOf(Blocks.REPEATING_COMMAND_BLOCK) && !st.isOf(Blocks.STRUCTURE_BLOCK)
+            && !st.isOf(Blocks.JIGSAW) && !st.isOf(Blocks.WATER) && !st.isOf(Blocks.LAVA)
+            && !st.isOf(Blocks.NETHER_PORTAL) && !st.isOf(Blocks.REINFORCED_DEEPSLATE);
+    }
+
+    private static void scaffold(MinecraftClient mc, ClientPlayerEntity p) {
+        if (mc.currentScreen != null || !mc.options.useKey.isPressed()) return;
+        int blockSlot = -1;
+        for (int i = 0; i < 9; i++) if (p.getInventory().getStack(i).getItem() instanceof BlockItem) { blockSlot = i; break; }
+        if (blockSlot == -1) return;
+        BlockPos under = p.getBlockPos().down();
+        if (mc.world.getBlockState(under).isAir()) {
+            int oldSlot = p.getInventory().getSelectedSlot();
+            p.getInventory().setSelectedSlot(blockSlot);
+            BlockPos placeAgainst = null;
+            Direction placeFace = null;
+            Direction behind = p.getHorizontalFacing().getOpposite();
+            BlockPos backNeighbor = under.offset(behind);
+            if (mc.world.getBlockState(backNeighbor).isSolidBlock(mc.world, backNeighbor)) {
+                placeAgainst = backNeighbor;
+                placeFace = behind.getOpposite();
+            } else {
+                for (Direction dir : new Direction[]{Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST}) {
+                    BlockPos neighbor = under.offset(dir);
+                    if (mc.world.getBlockState(neighbor).isSolidBlock(mc.world, neighbor)) {
+                        placeAgainst = neighbor;
+                        placeFace = dir.getOpposite();
+                        break;
+                    }
+                }
+            }
+            if (placeAgainst != null) {
+                Vec3d hitVec = Vec3d.ofCenter(placeAgainst).add(placeFace.getOffsetX() * 0.5, placeFace.getOffsetY() * 0.5, placeFace.getOffsetZ() * 0.5);
+                Vec3d eye = p.getEyePos();
+                double dx = hitVec.x - eye.x, dy = hitVec.y - eye.y, dz = hitVec.z - eye.z;
+                double flat = Math.sqrt(dx * dx + dz * dz);
+                float targetYaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
+                float targetPitch = (float) -Math.toDegrees(Math.atan2(dy, flat));
+                p.setSneaking(true);
+                p.networkHandler.sendPacket(new ClientCommandC2SPacket(p, ClientCommandC2SPacket.Mode.PRESS_SHIFT_KEY));
+                p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(targetYaw, targetPitch, p.isOnGround(), p.horizontalCollision));
+                float oldYaw = p.getYaw(), oldPitch = p.getPitch();
+                p.setYaw(targetYaw); p.setPitch(targetPitch);
+                p.swingHand(Hand.MAIN_HAND);
+                BlockHitResult hit = new BlockHitResult(hitVec, placeFace, placeAgainst, false);
+                mc.interactionManager.interactBlock(p, Hand.MAIN_HAND, hit);
+                if (!mc.options.forwardKey.isPressed() && !mc.options.backKey.isPressed()) {
+                    mc.options.backKey.setPressed(true);
+                    scaffoldTimer = 3;
+                }
+                p.setYaw(oldYaw); p.setPitch(oldPitch);
+                p.setSneaking(false);
+                p.networkHandler.sendPacket(new ClientCommandC2SPacket(p, ClientCommandC2SPacket.Mode.RELEASE_SHIFT_KEY));
+                p.getInventory().setSelectedSlot(oldSlot);
+            }
+        }
+    }
+
+    static void findStorage(MinecraftClient mc) {
+        ClientPlayerEntity p = mc.player;
+        if (p == null || mc.world == null) return;
+        scanChests(mc, p);
+        storageResults.clear();
+        storageResults.addAll(chestCache);
+        BlockPos me = p.getBlockPos();
+        p.sendMessage(Text.literal("§b═══ BASE FINDER ═══"), false);
+        p.sendMessage(Text.literal("§fFound §b" + storageResults.size() + "§f containers"), false);
         int n = Math.min(15, storageResults.size());
         for (int i = 0; i < n; i++) {
             BlockPos b = storageResults.get(i);
@@ -331,124 +778,12 @@ public class KingerLol implements ClientModInitializer {
         else if (!offhand.isOf(Items.SHIELD) && p.isBlocking()) mc.options.useKey.setPressed(false);
     }
 
-    private static boolean isKitReady(ClientPlayerEntity p) {
-        return p.getInventory().getStack(0).isOf(Items.MACE) &&
-               p.getInventory().getStack(1).isOf(Items.WIND_CHARGE) &&
-               p.getInventory().getStack(2).isOf(Items.ENDER_PEARL) &&
-               p.getInventory().getStack(3).isOf(Items.ELYTRA);
-    }
-    private static int findItemSlot(ClientPlayerEntity p, Item item) {
-        for (int i = 0; i < 36; i++) if (p.getInventory().getStack(i).isOf(item)) return i;
-        return -1;
-    }
-    private static int invToHandlerSlot(int s) { return s < 9 ? 36 + s : s; }
-
-    private static void maceKiller(MinecraftClient mc, ClientPlayerEntity p) {
-        if (mc.currentScreen != null) return;
-        switch (maceState) {
-            case IDLE -> {
-                if (!isKitReady(p)) { maceState = MaceState.EQUIP; return; }
-                PlayerEntity target = null;
-                double bestD = MACE_RANGE.value * MACE_RANGE.value;
-                for (PlayerEntity o : mc.world.getPlayers()) {
-                    if (o == p || !o.isAlive() || o.isSpectator() || isBot(o, mc)) continue;
-                    double d = p.squaredDistanceTo(o);
-                    if (d < bestD) { bestD = d; target = o; }
-                }
-                if (target == null) return;
-                maceTarget = target;
-                maceState = MaceState.THROW_PEARL; maceTimer = 0; maceStateTicks = 0;
-                lookAt(p, maceTarget.getEyePos());
-                p.getInventory().setSelectedSlot(2);
-                mc.interactionManager.interactItem(p, Hand.MAIN_HAND);
-                p.swingHand(Hand.MAIN_HAND);
-            }
-            case EQUIP -> {
-                if (kitCooldown > 0) { kitCooldown--; return; }
-                int mS = findItemSlot(p, Items.MACE), wS = findItemSlot(p, Items.WIND_CHARGE);
-                int pS = findItemSlot(p, Items.ENDER_PEARL), eS = findItemSlot(p, Items.ELYTRA);
-                if (mS == -1 || wS == -1 || pS == -1 || eS == -1) {
-                    p.sendMessage(Text.literal("§cMissing Mace/Wind/Pearl/Elytra!"), true);
-                    MACE_KILLER.on = false; maceState = MaceState.IDLE; return;
-                }
-                int sync = p.playerScreenHandler.syncId;
-                if (mS != 0) { mc.interactionManager.clickSlot(sync, invToHandlerSlot(mS), 0, SlotActionType.SWAP, p); kitCooldown = 3; return; }
-                if (wS != 1) { mc.interactionManager.clickSlot(sync, invToHandlerSlot(wS), 1, SlotActionType.SWAP, p); kitCooldown = 3; return; }
-                if (pS != 2) { mc.interactionManager.clickSlot(sync, invToHandlerSlot(pS), 2, SlotActionType.SWAP, p); kitCooldown = 3; return; }
-                if (eS != 3) { mc.interactionManager.clickSlot(sync, invToHandlerSlot(eS), 3, SlotActionType.SWAP, p); kitCooldown = 3; return; }
-                maceState = MaceState.IDLE;
-            }
-            case THROW_PEARL -> {
-                maceTimer++;
-                if (maceTimer >= (int) PEARL_DELAY.value) {
-                    p.getInventory().setSelectedSlot(1);
-                    mc.interactionManager.interactItem(p, Hand.MAIN_HAND);
-                    p.swingHand(Hand.MAIN_HAND);
-                    maceState = MaceState.THROW_WIND; maceTimer = 0;
-                }
-                if (maceStateTicks++ > 30) resetMace(mc, p);
-            }
-            case THROW_WIND -> {
-                maceTimer++;
-                if (maceTimer >= 3) {
-                    if (!elytraEquipped) { swapChest(mc, p); elytraEquipped = true; }
-                    if (!p.isGliding() && !p.isOnGround()) {
-                        p.startGliding();
-                        p.networkHandler.sendPacket(new ClientCommandC2SPacket(p, ClientCommandC2SPacket.Mode.START_FALL_FLYING));
-                    }
-                    maceState = MaceState.GLIDE; maceStateTicks = 0;
-                }
-            }
-            case GLIDE -> {
-                if (maceTarget == null || !maceTarget.isAlive()) { resetMace(mc, p); return; }
-                maceStateTicks++;
-                lookAt(p, maceTarget.getEyePos());
-                boolean above = p.getY() > maceTarget.getY() + 2.0;
-                double dist = p.distanceTo(maceTarget);
-                if ((above && (dist < 8.0 || p.getVelocity().y < 0)) || dist < 4.0) {
-                    if (elytraEquipped) { swapChest(mc, p); elytraEquipped = false; }
-                    maceState = MaceState.SMASH; maceTimer = 2; maceStateTicks = 0;
-                } else if (p.isOnGround() || maceStateTicks > 100) resetMace(mc, p);
-            }
-            case SMASH -> {
-                if (maceTimer > 0) { maceTimer--; return; }
-                if (maceTarget == null || !maceTarget.isAlive()) { resetMace(mc, p); return; }
-                p.getInventory().setSelectedSlot(0);
-                lookAt(p, maceTarget.getEyePos());
-                if (p.distanceTo(maceTarget) <= 3.5 && p.getAttackCooldownProgress(0f) >= 0.9f) {
-                    mc.interactionManager.attackEntity(p, maceTarget);
-                    p.swingHand(Hand.MAIN_HAND);
-                    maceState = MaceState.COMBO; maceStateTicks = 0;
-                } else if (p.isOnGround()) resetMace(mc, p);
-            }
-            case COMBO -> {
-                if (maceTarget == null || !maceTarget.isAlive()) { resetMace(mc, p); return; }
-                maceStateTicks++;
-                if (maceStateTicks < 20) {
-                    p.getInventory().setSelectedSlot(0);
-                    lookAt(p, maceTarget.getEyePos());
-                    if (p.distanceTo(maceTarget) <= 4.0 && p.getAttackCooldownProgress(0f) >= 0.9f) {
-                        mc.interactionManager.attackEntity(p, maceTarget);
-                        p.swingHand(Hand.MAIN_HAND);
-                    }
-                } else resetMace(mc, p);
-            }
-        }
-    }
-
-    private static void resetMace(MinecraftClient mc, ClientPlayerEntity p) {
-        if (elytraEquipped) { swapChest(mc, p); elytraEquipped = false; }
-        maceState = MaceState.IDLE; maceTarget = null; maceTimer = 0; maceStateTicks = 0;
-    }
-
-    private static void swapChest(MinecraftClient mc, ClientPlayerEntity p) {
-        mc.interactionManager.clickSlot(p.playerScreenHandler.syncId, 6, 3, SlotActionType.SWAP, p);
-    }
-
     private static boolean isBot(PlayerEntity player, MinecraftClient mc) {
         if (!ANTIBOT.on || mc.getNetworkHandler() == null) return false;
         PlayerListEntry entry = mc.getNetworkHandler().getPlayerListEntry(player.getUuid());
-        return entry == null;
+        if (entry == null) return true;
+        String name = entry.getProfile().name();
+        return name.contains("§") || name.length() < 3;
     }
 
     private static void killAura(MinecraftClient mc, ClientPlayerEntity p) {
@@ -482,7 +817,7 @@ public class KingerLol implements ClientModInitializer {
                 p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(targetYaw, targetPitch, p.isOnGround(), p.horizontalCollision));
                 mc.interactionManager.attackEntity(p, target);
                 p.swingHand(Hand.MAIN_HAND);
-                auraCooldown = 2;
+                auraCooldown = 2 + new Random().nextInt(2);
                 return;
             }
         }
@@ -490,6 +825,12 @@ public class KingerLol implements ClientModInitializer {
         if (CRITICALS.on && p.isOnGround() && p.getVelocity().y == 0 && !p.isSprinting() && !p.isTouchingWater()) {
             p.jump(); auraCooldown = 2; return;
         }
+
+        if (W_TAP.on && p.isSprinting()) {
+            mc.options.sprintKey.setPressed(false);
+            wTapTimer = 1;
+        }
+
         Vec3d eye = p.getEyePos();
         Vec3d pos = target.getEyePos();
         double dx = pos.x - eye.x, dy = pos.y - eye.y, dz = pos.z - eye.z;
@@ -497,13 +838,15 @@ public class KingerLol implements ClientModInitializer {
         float targetYaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
         float targetPitch = (float) -Math.toDegrees(Math.atan2(dy, flat));
         float sens = AIM_MODE.value == 0 ? 0.15f : AIM_MODE.value == 1 ? 0.10f : 0.05f;
-        float rotYaw = (float) (Math.round((p.getYaw() + wrapDegrees(targetYaw - p.getYaw())) / sens) * sens);
-        float rotPitch = (float) (Math.round((p.getPitch() + (targetPitch - p.getPitch())) / sens) * sens);
+        float jitterYaw = (float) ((Math.random() - 0.5) * 0.08);
+        float jitterPitch = (float) ((Math.random() - 0.5) * 0.08);
+        float rotYaw = (float) (Math.round((p.getYaw() + wrapDegrees(targetYaw - p.getYaw())) / sens) * sens) + jitterYaw;
+        float rotPitch = (float) (Math.round((p.getPitch() + (targetPitch - p.getPitch())) / sens) * sens) + jitterPitch;
         p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(rotYaw, rotPitch, p.isOnGround(), p.horizontalCollision));
         mc.interactionManager.attackEntity(p, target);
         p.swingHand(Hand.MAIN_HAND);
         int ping = getPing(mc);
-        auraCooldown = Math.max(1, (ping / 50) + 1);
+        auraCooldown = Math.max(1, (ping / 50) + 1 + new Random().nextInt(2));
     }
 
     private static void aimAssist(MinecraftClient mc, ClientPlayerEntity p) {
@@ -533,8 +876,8 @@ public class KingerLol implements ClientModInitializer {
         float sens = AIM_MODE.value == 0 ? 0.15f : AIM_MODE.value == 1 ? 0.10f : 0.05f;
         float finalYaw = p.getYaw() + wrapDegrees(wantYaw - p.getYaw()) * speedF;
         float finalPitch = p.getPitch() + (wantPitch - p.getPitch()) * speedF;
-        finalYaw += (float) ((Math.random() - 0.5) * 0.05);
-        finalPitch += (float) ((Math.random() - 0.5) * 0.05);
+        finalYaw += (float) ((Math.random() - 0.5) * 0.06);
+        finalPitch += (float) ((Math.random() - 0.5) * 0.06);
         finalYaw = (float) (Math.round(finalYaw / sens) * sens);
         finalPitch = (float) (Math.round(finalPitch / sens) * sens);
         p.setYaw(finalYaw); p.setPitch(finalPitch);
@@ -689,9 +1032,7 @@ public class KingerLol implements ClientModInitializer {
         }
         if (target == null) return;
         int blockSlot = -1;
-        for (int i = 0; i < 9; i++) {
-            if (p.getInventory().getStack(i).isOf(Items.OBSIDIAN)) { blockSlot = i; break; }
-        }
+        for (int i = 0; i < 9; i++) if (p.getInventory().getStack(i).isOf(Items.OBSIDIAN)) { blockSlot = i; break; }
         if (blockSlot == -1) return;
         BlockPos tPos = target.getBlockPos();
         BlockPos[] surrounds = { tPos.north(), tPos.south(), tPos.east(), tPos.west(), tPos.up(), tPos.up(2) };
@@ -717,15 +1058,6 @@ public class KingerLol implements ClientModInitializer {
                 mc.interactionManager.clickSlot(p.playerScreenHandler.syncId, slot, 40, SlotActionType.SWAP, p);
                 totemCooldown = cd;
                 return;
-            }
-        }
-        if (p.getHealth() < 8) {
-            for (int slot = 9; slot <= 44; slot++) {
-                if (p.playerScreenHandler.getSlot(slot).getStack().isOf(Items.ENCHANTED_GOLDEN_APPLE)) {
-                    mc.interactionManager.clickSlot(p.playerScreenHandler.syncId, slot, 40, SlotActionType.SWAP, p);
-                    totemCooldown = cd;
-                    return;
-                }
             }
         }
     }
@@ -786,25 +1118,6 @@ public class KingerLol implements ClientModInitializer {
         stepCooldown = 4;
     }
 
-    private static void scaffold(MinecraftClient mc, ClientPlayerEntity p) {
-        if (mc.currentScreen != null) return;
-        boolean shouldPlace = !p.isOnGround() && p.getVelocity().y < 0;
-        boolean tower = mc.options.jumpKey.isPressed() && p.isOnGround();
-        if (!shouldPlace && !tower) return;
-        int blockSlot = -1;
-        for (int i = 0; i < 9; i++) {
-            if (p.getInventory().getStack(i).getItem() instanceof BlockItem) { blockSlot = i; break; }
-        }
-        if (blockSlot == -1) return;
-        p.getInventory().setSelectedSlot(blockSlot);
-        BlockPos under = p.getBlockPos().down();
-        if (mc.world.getBlockState(under).isAir()) {
-            BlockHitResult hit = new BlockHitResult(Vec3d.ofCenter(under), Direction.UP, under, false);
-            mc.interactionManager.interactBlock(p, Hand.MAIN_HAND, hit);
-            p.swingHand(Hand.MAIN_HAND);
-        }
-    }
-
     private static void noFall(MinecraftClient mc, ClientPlayerEntity p) {
         if (p.fallDistance > 2.0f) {
             p.networkHandler.sendPacket(new PlayerMoveC2SPacket.OnGroundOnly(true, p.horizontalCollision));
@@ -850,6 +1163,21 @@ public class KingerLol implements ClientModInitializer {
         return new int[]{sx, sy};
     }
 
+    private static void drawLine(DrawContext ctx, int x0, int y0, int x1, int y1, int color) {
+        int dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+        int dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+        int err = dx + dy;
+        int steps = 0;
+        while (steps < 2000) {
+            ctx.fill(x0, y0, x0 + 1, y0 + 1, color);
+            if (x0 == x1 && y0 == y1) break;
+            int e2 = 2 * err;
+            if (e2 >= dy) { err += dy; x0 += sx; }
+            if (e2 <= dx) { err += dx; y0 += sy; }
+            steps++;
+        }
+    }
+
     private static void renderHud(DrawContext ctx, RenderTickCounter tickCounter) {
         MinecraftClient mc = MinecraftClient.getInstance();
         ClientPlayerEntity p = mc.player;
@@ -857,12 +1185,13 @@ public class KingerLol implements ClientModInitializer {
         TextRenderer tr = mc.textRenderer;
         int sw = ctx.getScaledWindowWidth(), sh = ctx.getScaledWindowHeight();
 
+        Vec3d camPos = p.getEyePos();
+        float camYaw = mc.gameRenderer.getCamera().getYaw();
+        float camPitch = mc.gameRenderer.getCamera().getPitch();
+        double fov = mc.options.getFov().getValue();
+        double focal = (sh / 2.0) / Math.tan(Math.toRadians(fov / 2.0));
+
         if (TRACERS.on) {
-            Vec3d camPos = p.getEyePos();
-            float camYaw = mc.gameRenderer.getCamera().getYaw();
-            float camPitch = mc.gameRenderer.getCamera().getPitch();
-            double fov = mc.options.getFov().getValue();
-            double focal = (sh / 2.0) / Math.tan(Math.toRadians(fov / 2.0));
             for (PlayerEntity o : mc.world.getPlayers()) {
                 if (o == p || isBot(o, mc)) continue;
                 double d = p.distanceTo(o);
@@ -874,13 +1203,29 @@ public class KingerLol implements ClientModInitializer {
             }
         }
 
+        if (BASE_FINDER.on && !chestCache.isEmpty()) {
+            int cx = sw / 2, cy = sh / 2;
+            for (BlockPos chestPos : chestCache) {
+                double d = p.getPos().distanceTo(Vec3d.ofCenter(chestPos));
+                if (d > 512) continue;
+                int[] sc = projectToScreen(Vec3d.ofCenter(chestPos), camPos, camYaw, camPitch, sw, sh, focal);
+                if (sc == null) continue;
+                int color = d < 64 ? 0xFFFFAA00 : (d < 128 ? 0xFFFFCC00 : 0xFFFFEE00);
+                drawLine(ctx, cx, cy, sc[0], sc[1], color);
+                ctx.fill(sc[0] - 2, sc[1] - 2, sc[0] + 2, sc[1] + 2, color);
+                ctx.drawTextWithShadow(tr, (int)d + "m", sc[0] + 3, sc[1] - 3, 0xFFFFAA00);
+            }
+            ctx.fill(cx - 2, cy - 1, cx + 2, cy + 1, 0xFFFFAA00);
+            ctx.fill(cx - 1, cy - 2, cx + 1, cy + 2, 0xFFFFAA00);
+        }
+
         if (storageShowTimer > 0 && !storageResults.isEmpty()) {
             int panelY = sh / 4;
             int panelX = sw / 2 - 120;
             int listH = 20 * Math.min(15, storageResults.size()) + 25;
             ctx.fill(panelX - 5, panelY - 5, panelX + 245, panelY + listH, 0xDD000000);
             ctx.fill(panelX - 5, panelY - 5, panelX - 3, panelY + listH, 0xFF00E5FF);
-            ctx.drawTextWithShadow(tr, "§bSTORAGE v500Q §7(" + storageResults.size() + ")", panelX, panelY, 0xFFFFFFFF);
+            ctx.drawTextWithShadow(tr, "§bBASE FINDER §7(" + storageResults.size() + ")", panelX, panelY, 0xFFFFFFFF);
             int n = Math.min(15, storageResults.size());
             for (int i = 0; i < n; i++) {
                 BlockPos b = storageResults.get(i);
@@ -926,15 +1271,18 @@ public class KingerLol implements ClientModInitializer {
         }
     }
 
+    // ============ MENU ============
+
     enum Kind { TAB, TOGGLE, ACTION, STEP, VALUE }
     record Widget(int x, int y, int w, int h, String label, Kind kind, BooleanSupplier active, String desc, Supplier<String> tag) {}
 
     static class Menu extends Screen {
-        static final int PW = 520, PH = 360;
+        static final int PW = 540, PH = 420;
         private final List<Widget> widgets = new ArrayList<>();
-        final int BG_COLOR = 0xF0101018;
-        final int PANEL_COLOR = 0xF01E1E28;
+        final int BG_COLOR = 0xF00E0E16;
+        final int PANEL_COLOR = 0xF01C1C26;
         final int ACCENT = 0xFF00E5FF;
+        final int ACCENT2 = 0xFFFF00AA;
         final int TEXT_COLOR = 0xFFEEEEEE;
         final int TEXT_DARK = 0xFF666677;
         private final long openTime = System.currentTimeMillis();
@@ -950,54 +1298,62 @@ public class KingerLol implements ClientModInitializer {
         @Override protected void init() {
             widgets.clear();
             int px = px(), py = py();
-            int sx = px + 10, sy = py + 45, i = 0;
+            int sx = px + 10, sy = py + 50, i = 0;
             for (Cat c : Cat.values()) {
                 final Cat cc = c; int ty = sy + i * 26;
-                hit(sx, ty, 115, 24, () -> { lastTab = cc; save(); clearAndInit(); });
-                widgets.add(new Widget(sx, ty, 115, 24, c.label, Kind.TAB, () -> lastTab == cc, null, null));
+                hit(sx, ty, 120, 24, () -> { lastTab = cc; save(); clearAndInit(); });
+                widgets.add(new Widget(sx, ty, 120, 24, c.label, Kind.TAB, () -> lastTab == cc, null, null));
                 i++;
             }
-            int cx = px + 135, cy = py + 45, col = 0, row = 0;
+            int cx = px + 140, cy = py + 50, col = 0, row = 0;
             for (Mod m : MODS) {
                 if (m.cat != lastTab) continue;
-                int mx = cx + col * 185, my = cy + row * 28;
-                hit(mx, my, 180, 24, () -> {
+                int mx = cx + col * 195, my = cy + row * 28;
+                hit(mx, my, 190, 24, () -> {
                     if (m.action) {
                         if (m == STORAGE) { close(); findStorage(this.client); }
                         else if (m == AUTOLOGIN) { close(); autoLogin(this.client); }
                         else if (m == AUTOREGISTER) { close(); autoRegister(this.client); }
                     } else { m.on = !m.on; save(); }
                 });
-                widgets.add(new Widget(mx, my, 180, 24, m.name, m.action ? Kind.ACTION : Kind.TOGGLE, () -> m.on, m.desc, null));
+                widgets.add(new Widget(mx, my, 190, 24, m.name, m.action ? Kind.ACTION : Kind.TOGGLE, () -> m.on, m.desc, null));
                 col++; if (col == 2) { col = 0; row++; }
             }
             if (col == 1) row++;
             for (Num n : NUMS) {
                 if (n.cat != lastTab) continue;
                 int ny = cy + row * 30;
-                widgets.add(new Widget(cx, ny, 260, 22, n.name, Kind.VALUE, () -> false, n.desc, () -> String.valueOf(n.value)));
-                hit(cx + 265, ny, 22, 22, () -> { n.change(-1); save(); });
-                widgets.add(new Widget(cx + 265, ny, 22, 22, "-", Kind.STEP, () -> false, null, null));
-                hit(cx + 290, ny, 22, 22, () -> { n.change(1); save(); });
-                widgets.add(new Widget(cx + 290, ny, 22, 22, "+", Kind.STEP, () -> false, null, null));
+                widgets.add(new Widget(cx, ny, 280, 22, n.name, Kind.VALUE, () -> false, n.desc, () -> String.valueOf(n.value)));
+                hit(cx + 285, ny, 22, 22, () -> { n.change(-1); save(); });
+                widgets.add(new Widget(cx + 285, ny, 22, 22, "-", Kind.STEP, () -> false, null, null));
+                hit(cx + 312, ny, 22, 22, () -> { n.change(1); save(); });
+                widgets.add(new Widget(cx + 312, ny, 22, 22, "+", Kind.STEP, () -> false, null, null));
                 row++;
             }
+
+            int cmdY = py + PH - 55;
+            TextFieldWidget cmdField = new TextFieldWidget(this.textRenderer, px + 145, cmdY, 385, 20, Text.literal("Auto Command (K key)"));
+            cmdField.setText(autoCommandText);
+            cmdField.setMaxLength(256);
+            cmdField.setChangedListener(text -> { autoCommandText = text; save(); });
+            addDrawableChild(cmdField);
         }
 
         @Override public void renderBackground(DrawContext ctx, int mouseX, int mouseY, float delta) {
-            float t = Math.min(1f, (System.currentTimeMillis() - openTime) / 200f);
-            ctx.fill(0, 0, this.width, this.height, ((int)(0x99 * t)) << 24);
+            float t = Math.min(1f, (System.currentTimeMillis() - openTime) / 250f);
+            ctx.fill(0, 0, this.width, this.height, ((int)(0xAA * t)) << 24);
             int px = px(), py = py();
-            for (int i = 0; i < 4; i++) {
-                int alpha = (int)(0x50 * t) >> i;
+            for (int i = 0; i < 5; i++) {
+                int alpha = (int)(0x40 * t) >> i;
                 ctx.fill(px - 3 - i, py - 3 - i, px + PW + 3 + i, py + PH + 3 + i, (alpha << 24) | 0x00E5FF);
             }
             ctx.fill(px, py, px + PW, py + PH, BG_COLOR);
-            ctx.fill(px, py, px + 135, py + PH, PANEL_COLOR);
-            ctx.fill(px, py, px + PW, py + 35, 0xF0080810);
-            ctx.fill(px, py + 35, px + PW, py + 36, ACCENT);
-            int scanY = py + 35 + (int)((System.currentTimeMillis() / 5) % PH);
+            ctx.fill(px, py, px + 140, py + PH, PANEL_COLOR);
+            ctx.fill(px, py, px + PW, py + 36, 0xF0080810);
+            ctx.fill(px, py + 36, px + PW, py + 37, ACCENT);
+            int scanY = py + 38 + (int)((System.currentTimeMillis() / 4) % (PH - 38));
             if (scanY < py + PH) ctx.fill(px, scanY, px + PW, scanY + 1, 0x2000E5FF);
+            ctx.fill(px + 138, py, px + 140, py + PH, ACCENT);
         }
 
         @Override public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
@@ -1008,31 +1364,40 @@ public class KingerLol implements ClientModInitializer {
             int r = (int)(Math.sin(t * 0.05) * 80 + 175);
             int g = (int)(Math.sin(t * 0.05 + 2) * 80 + 175);
             int b = (int)(Math.sin(t * 0.05 + 4) * 80 + 175);
-            ctx.drawTextWithShadow(tr, NAME, px + 12, py + 12, 0xFF000000 | (r << 16) | (g << 8) | b);
-            ctx.drawTextWithShadow(tr, VERSION, px + PW - tr.getWidth(VERSION) - 12, py + 12, TEXT_DARK);
+            ctx.drawTextWithShadow(tr, NAME, px + 14, py + 13, 0xFF000000 | (r << 16) | (g << 8) | b);
+            ctx.drawTextWithShadow(tr, VERSION, px + PW - tr.getWidth(VERSION) - 14, py + 13, 0xFFFF00AA);
+            int ci = 0;
+            for (Cat c : Cat.values()) {
+                if (c == lastTab) {
+                    int ly = py + 50 + ci * 26;
+                    ctx.fill(px + 132, ly, px + 140, ly + 24, ACCENT2);
+                    break;
+                }
+                ci++;
+            }
             for (Widget w : widgets) {
                 boolean hov = mouseX >= w.x() && mouseX < w.x() + w.w() && mouseY >= w.y() && mouseY < w.y() + w.h();
                 boolean on = w.active().getAsBoolean();
                 if (w.kind() == Kind.TAB) {
                     if (on) {
                         ctx.fill(w.x(), w.y(), w.x() + w.w(), w.y() + w.h(), 0xFF2A2A38);
-                        ctx.fill(w.x(), w.y(), w.x() + 3, w.y() + w.h(), ACCENT);
+                        ctx.fill(w.x(), w.y(), w.x() + 4, w.y() + w.h(), ACCENT);
                     } else if (hov) {
-                        ctx.fill(w.x(), w.y(), w.x() + w.w(), w.y() + w.h(), 0xFF2A2A38);
+                        ctx.fill(w.x(), w.y(), w.x() + w.w(), w.y() + w.h(), 0xFF252532);
                     }
-                    ctx.drawTextWithShadow(tr, w.label(), w.x() + 10, w.y() + (w.h() - 8) / 2, on ? ACCENT : TEXT_COLOR);
+                    ctx.drawTextWithShadow(tr, w.label(), w.x() + 12, w.y() + (w.h() - 8) / 2, on ? ACCENT : TEXT_COLOR);
                 } else if (w.kind() == Kind.TOGGLE) {
                     int bgColor = on ? 0xFF0088AA : 0xFF333340;
                     if (hov) bgColor = on ? ACCENT : 0xFF444455;
-                    ctx.drawTextWithShadow(tr, w.label(), w.x() + 5, w.y() + (w.h() - 8) / 2, on ? 0xFFFFFFFF : TEXT_DARK);
-                    int toggleX = w.x() + w.w() - 32;
+                    ctx.drawTextWithShadow(tr, w.label(), w.x() + 8, w.y() + (w.h() - 8) / 2, on ? 0xFFFFFFFF : TEXT_DARK);
+                    int toggleX = w.x() + w.w() - 34;
                     int toggleY = w.y() + 6;
-                    ctx.fill(toggleX, toggleY, toggleX + 24, toggleY + 12, bgColor);
-                    int circleX = on ? toggleX + 14 : toggleX + 2;
+                    ctx.fill(toggleX, toggleY, toggleX + 26, toggleY + 12, bgColor);
+                    int circleX = on ? toggleX + 15 : toggleX + 2;
                     ctx.fill(circleX, toggleY + 2, circleX + 8, toggleY + 10, 0xFFFFFFFF);
                 } else if (w.kind() == Kind.VALUE) {
                     ctx.drawTextWithShadow(tr, w.label(), w.x(), w.y() + 7, TEXT_COLOR);
-                    ctx.drawTextWithShadow(tr, w.tag().get(), w.x() + w.w() - tr.getWidth(w.tag().get()), w.y() + 7, ACCENT);
+                    ctx.drawTextWithShadow(tr, w.tag().get(), w.x() + w.w() - tr.getWidth(w.tag().get()) - 3, w.y() + 7, ACCENT);
                 } else if (w.kind() == Kind.STEP) {
                     int bg = hov ? 0xFF444455 : 0xFF222230;
                     ctx.fill(w.x(), w.y(), w.x() + w.w(), w.y() + w.h(), bg);
@@ -1041,9 +1406,10 @@ public class KingerLol implements ClientModInitializer {
                 } else if (w.kind() == Kind.ACTION) {
                     int bg = hov ? 0xFF2A2A38 : PANEL_COLOR;
                     ctx.fill(w.x(), w.y(), w.x() + w.w(), w.y() + w.h(), bg);
-                    ctx.drawTextWithShadow(tr, w.label(), w.x() + 5, w.y() + (w.h() - 8) / 2, ACCENT);
+                    ctx.drawTextWithShadow(tr, w.label(), w.x() + 8, w.y() + (w.h() - 8) / 2, ACCENT);
                 }
             }
+            ctx.drawTextWithShadow(tr, "§b§lAuto Command §7(press §fK§7 to open)", px + 145, py + PH - 72, 0xFFFFFFFF);
         }
         @Override public boolean shouldPause() { return false; }
     }
