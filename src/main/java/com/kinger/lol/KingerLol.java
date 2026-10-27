@@ -328,7 +328,7 @@ private static void selectSlot(ClientPlayerEntity p, int slot) {
 }
 
 private static void spawnParticle(ClientWorld cw, ParticleEffect effect, double x, double y, double z, double vx, double vy, double vz) {
-    cw.addParticle(effect, false, false, x, y, z, vx, vy, vz);
+    cw.addParticle(effect, x, y, z, vx, vy, vz);
 }
 
 private static Path configPath() { return FabricLoader.getInstance().getConfigDir().resolve("kingerlol.properties"); }
