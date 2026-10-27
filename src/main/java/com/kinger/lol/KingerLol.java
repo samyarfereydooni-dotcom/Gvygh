@@ -2002,4 +2002,45 @@ public class KingerLol implements ClientModInitializer {
                 if (c == Cat.ACCESSORY && !adminAuthenticated) continue;
                 if (c == lastTab) { ctx.fill(px + 132, py + 50 + ci * 24, px + 140, py + 50 + ci * 24 + 22, ACCENT2); break; }
                 ci++;
+                                          }
+                        for (Widget w : widgets) {
+                boolean hov = mouseX >= w.x() && mouseX < w.x() + w.w() && mouseY >= w.y() && mouseY < w.y() + w.h();
+                boolean on = w.active().getAsBoolean();
+                if (w.kind() == Kind.TAB) {
+                    if (on) { ctx.fill(w.x(), w.y(), w.x() + w.w(), w.y() + w.h(), 0xFF2A2A38); ctx.fill(w.x(), w.y(), w.x() + 4, w.y() + w.h(), ACCENT); }
+                    else if (hov) ctx.fill(w.x(), w.y(), w.x() + w.w(), w.y() + w.h(), 0xFF252532);
+                    ctx.drawTextWithShadow(tr, w.label(), w.x() + 12, w.y() + (w.h() - 8) / 2, on ? ACCENT : TXT);
+                } else if (w.kind() == Kind.TOGGLE) {
+                    if (w.vipLocked) {
+                        ctx.fill(w.x(), w.y(), w.x() + w.w(), w.y() + w.h(), 0xFF1A1A22);
+                        ctx.drawTextWithShadow(tr, w.label(), w.x() + 8, w.y() + (w.h() - 8) / 2, 0xFF884400);
+                        ctx.drawTextWithShadow(tr, "§6★VIP", w.x() + w.w() - 38, w.y() + (w.h() - 8) / 2, 0xFFFFAA00);
+                    } else {
+                        boolean isGod = w.label().contains("§6§l👑") || w.label().contains("§c§l🔥") || w.label().contains("§6§l✨");
+                        int bgC = on ? (isGod ? 0xFFFFAA00 : 0xFF0088AA) : 0xFF333340;
+                        if (hov) bgC = on ? ACCENT : 0xFF444455;
+                        ctx.drawTextWithShadow(tr, w.label(), w.x() + 8, w.y() + (w.h() - 8) / 2, on ? 0xFFFFFFFF : TXT_D);
+                        int tx = w.x() + w.w() - 34, ty = w.y() + 6;
+                        ctx.fill(tx, ty, tx + 26, ty + 12, bgC);
+                        int cx2 = on ? tx + 15 : tx + 2;
+                        ctx.fill(cx2, ty + 2, cx2 + 8, ty + 10, 0xFFFFFFFF);
+                    }
+                } else if (w.kind() == Kind.VALUE) {
+                    ctx.drawTextWithShadow(tr, w.label(), w.x(), w.y() + 7, TXT);
+                    ctx.drawTextWithShadow(tr, w.tag().get(), w.x() + w.w() - tr.getWidth(w.tag().get()) - 3, w.y() + 7, ACCENT);
+                } else if (w.kind() == Kind.STEP) {
+                    int bg = hov ? 0xFF444455 : 0xFF222230;
+                    ctx.fill(w.x(), w.y(), w.x() + w.w(), w.y() + w.h(), bg);
+                    int tw = tr.getWidth(w.label());
+                    ctx.drawTextWithShadow(tr, w.label(), w.x() + (w.w() - tw) / 2, w.y() + (w.h() - 8) / 2, TXT);
+                } else if (w.kind() == Kind.ACTION) {
+                    int bg = hov ? 0xFF2A2A38 : PANEL;
+                    ctx.fill(w.x(), w.y(), w.x() + w.w(), w.y() + w.h(), bg);
+                    ctx.drawTextWithShadow(tr, w.label(), w.x() + 8, w.y() + (w.h() - 8) / 2, ACCENT);
+                }
+            }
+            ctx.drawTextWithShadow(tr, "§b§lAuto Command §7(press §fK§7 to open)", px + 145, py + PH - 72, 0xFFFFFFFF);
+        }
+        @Override public boolean shouldPause() { return false; }
     }
+                             }
