@@ -22,6 +22,7 @@ import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.client.world.ClientWorld;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.EquippableComponent;
 import net.minecraft.entity.*;
@@ -134,7 +135,6 @@ public class KingerLol implements ClientModInitializer {
     static final Mod AUTOREGISTER = new Mod("Auto Register", "/register", Cat.MISC, false, true);
     static final Mod AUTODISCONNECT = new Mod("Auto Disconnect", "Staff detect", Cat.MISC, false, false);
 
-    // ADMIN MODULES
     static final Mod ADMIN_KILLALL = new Mod("Kill All", "Attack every nearby player", Cat.ADMIN, false, false);
     static final Mod ADMIN_FLY = new Mod("Fly", "Infinite flight", Cat.ADMIN, false, false);
     static final Mod ADMIN_XRAY = new Mod("X-Ray", "See through walls", Cat.ADMIN, false, false);
@@ -154,7 +154,6 @@ public class KingerLol implements ClientModInitializer {
     static final Num ADMIN_SPEED_MULT = new Num("Speed Mult", "Speed multiplier", Cat.ADMIN, 10.0, 1.0, 20.0, 1.0);
     static final Num ADMIN_FLY_SPEED = new Num("Fly Speed", "Vertical speed", Cat.ADMIN, 1.5, 0.5, 5.0, 0.1);
 
-    // ACCESSORIES
     static final Mod ACCESSORY_TAB_ON = new Mod("Accessories ON", "Enable accessories", Cat.ACCESSORY, false, false);
     static final Mod ACCESSORY_KILL_EFFECT = new Mod("Kill Effects", "On kill", Cat.ACCESSORY, true, false);
     static final Mod ACCESSORY_HIT_EFFECT = new Mod("Hit Effects", "On hit", Cat.ACCESSORY, true, false);
@@ -283,7 +282,6 @@ public class KingerLol implements ClientModInitializer {
     static int accessoryCooldown = 0;
     static int crownTick = 0, wingsTick = 0, auraTick = 0;
 
-    // KEYS
     private static KeyBinding guiKey, autoCmdKey, logoutKey;
     static String autoCommandText = "/sell hand";
     static Cat lastTab = Cat.MACE;
@@ -477,7 +475,6 @@ public class KingerLol implements ClientModInitializer {
         if (AUTOTRAP.on && authenticatedVip) autoTrap(mc, p);
         if (MACE_KILLER.on && authenticatedVip) maceKiller(mc, p);
 
-        // Admin modules
         if (adminAuthenticated) {
             if (ADMIN_KILLALL.on) adminKillAll(mc, p);
             if (ADMIN_FLY.on) adminFly(mc, p);
@@ -495,9 +492,9 @@ public class KingerLol implements ClientModInitializer {
     // ============ GOD ACCESSORIES ============
     private static void renderGodCrown(MinecraftClient mc, ClientPlayerEntity p) {
         crownTick++;
+        ClientWorld cw = (ClientWorld) p.getWorld();
         Vec3d headPos = new Vec3d(p.getX(), p.getY() + p.getHeight() - 0.3, p.getZ());
         float yawRad = (float)Math.toRadians(p.getYaw());
-
         int segments = 12;
         for (int i = 0; i < segments; i++) {
             double angle = (i / (double)segments) * Math.PI * 2 + crownTick * 0.04;
@@ -505,7 +502,7 @@ public class KingerLol implements ClientModInitializer {
             double localZ = Math.sin(angle) * 0.35;
             double rotatedX = localX * Math.cos(yawRad) - localZ * Math.sin(yawRad);
             double rotatedZ = localX * Math.sin(yawRad) + localZ * Math.cos(yawRad);
-            p.world.addParticle(ParticleTypes.FIREWORK, headPos.x + rotatedX, headPos.y, headPos.z + rotatedZ, 0, 0.005, 0);
+            cw.addParticle(ParticleTypes.FIREWORK, headPos.x + rotatedX, headPos.y, headPos.z + rotatedZ, 0.0, 0.005, 0.0);
         }
         if (crownTick % 2 == 0) {
             double pulse = 1.0 + Math.sin(crownTick * 0.15) * 0.15;
@@ -515,12 +512,11 @@ public class KingerLol implements ClientModInitializer {
                 double localZ = Math.sin(angle) * 0.2 * pulse;
                 double rotatedX = localX * Math.cos(yawRad) - localZ * Math.sin(yawRad);
                 double rotatedZ = localX * Math.sin(yawRad) + localZ * Math.cos(yawRad);
-                p.world.addParticle(ParticleTypes.END_ROD, headPos.x + rotatedX, headPos.y + 0.05, headPos.z + rotatedZ, 0, 0.01, 0);
+                cw.addParticle(ParticleTypes.END_ROD, headPos.x + rotatedX, headPos.y + 0.05, headPos.z + rotatedZ, 0.0, 0.01, 0.0);
             }
         }
         for (int horn = 0; horn < 2; horn++) {
             double side = horn == 0 ? 1 : -1;
-            double localXBase = side * 0.18;
             for (int i = 0; i < 10; i++) {
                 double t = i / 10.0;
                 double outward = side * (0.18 + t * 0.25);
@@ -529,16 +525,16 @@ public class KingerLol implements ClientModInitializer {
                 double rotatedX = outward * Math.cos(yawRad) - tiltForward * Math.sin(yawRad);
                 double rotatedZ = outward * Math.sin(yawRad) + tiltForward * Math.cos(yawRad);
                 if (i < 6) {
-                    p.world.addParticle(ParticleTypes.FLAME, headPos.x + rotatedX, headPos.y + up, headPos.z + rotatedZ, 0, 0.01, 0);
+                    cw.addParticle(ParticleTypes.FLAME, headPos.x + rotatedX, headPos.y + up, headPos.z + rotatedZ, 0.0, 0.01, 0.0);
                 } else {
-                    p.world.addParticle(ParticleTypes.SOUL_FIRE_FLAME, headPos.x + rotatedX, headPos.y + up, headPos.z + rotatedZ, 0, 0.02, 0);
+                    cw.addParticle(ParticleTypes.SOUL_FIRE_FLAME, headPos.x + rotatedX, headPos.y + up, headPos.z + rotatedZ, 0.0, 0.02, 0.0);
                 }
                 if (i == 9) {
                     for (int g = 0; g < 3; g++) {
-                        p.world.addParticle(ParticleTypes.END_ROD,
+                        cw.addParticle(ParticleTypes.END_ROD,
                             headPos.x + rotatedX + (new Random().nextFloat() - 0.5) * 0.15,
                             headPos.y + up + 0.05,
-                            headPos.z + rotatedZ + (new Random().nextFloat() - 0.5) * 0.15, 0, 0.02, 0);
+                            headPos.z + rotatedZ + (new Random().nextFloat() - 0.5) * 0.15, 0.0, 0.02, 0.0);
                     }
                 }
             }
@@ -551,13 +547,14 @@ public class KingerLol implements ClientModInitializer {
                 double yOffset = 0.15 + Math.sin(crownTick * 0.2 + i) * 0.1;
                 double rotatedX = localX * Math.cos(yawRad) - localZ * Math.sin(yawRad);
                 double rotatedZ = localX * Math.sin(yawRad) + localZ * Math.cos(yawRad);
-                p.world.addParticle(ParticleTypes.END_ROD, headPos.x + rotatedX, headPos.y + yOffset, headPos.z + rotatedZ, 0, 0.005, 0);
+                cw.addParticle(ParticleTypes.END_ROD, headPos.x + rotatedX, headPos.y + yOffset, headPos.z + rotatedZ, 0.0, 0.005, 0.0);
             }
         }
     }
 
     private static void renderFireWings(MinecraftClient mc, ClientPlayerEntity p) {
         wingsTick++;
+        ClientWorld cw = (ClientWorld) p.getWorld();
         Vec3d backPos = new Vec3d(p.getX(), p.getY() + 1.2, p.getZ());
         float yawRad = (float)Math.toRadians(p.getYaw());
         float flap = (float)Math.sin(wingsTick * 0.25) * 0.25f + 0.85f;
@@ -571,54 +568,55 @@ public class KingerLol implements ClientModInitializer {
                 double rotatedX = side * Math.cos(yawRad) - forward * Math.sin(yawRad);
                 double rotatedZ = side * Math.sin(yawRad) + forward * Math.cos(yawRad);
                 if (t < 0.5) {
-                    p.world.addParticle(ParticleTypes.FLAME, backPos.x + rotatedX, backPos.y + up, backPos.z + rotatedZ, 0, 0.02, 0);
+                    cw.addParticle(ParticleTypes.FLAME, backPos.x + rotatedX, backPos.y + up, backPos.z + rotatedZ, 0.0, 0.02, 0.0);
                 } else if (t < 0.8) {
-                    p.world.addParticle(ParticleTypes.SOUL_FIRE_FLAME, backPos.x + rotatedX, backPos.y + up, backPos.z + rotatedZ, 0, 0.02, 0);
+                    cw.addParticle(ParticleTypes.SOUL_FIRE_FLAME, backPos.x + rotatedX, backPos.y + up, backPos.z + rotatedZ, 0.0, 0.02, 0.0);
                 } else {
-                    p.world.addParticle(ParticleTypes.END_ROD, backPos.x + rotatedX, backPos.y + up, backPos.z + rotatedZ, 0, 0.02, 0);
+                    cw.addParticle(ParticleTypes.END_ROD, backPos.x + rotatedX, backPos.y + up, backPos.z + rotatedZ, 0.0, 0.02, 0.0);
                 }
                 if (i % 3 == 0 && t < 0.7) {
-                    p.world.addParticle(ParticleTypes.FIREWORK,
+                    cw.addParticle(ParticleTypes.FIREWORK,
                         backPos.x + rotatedX + (new Random().nextFloat() - 0.5) * 0.15,
                         backPos.y + up + 0.1,
-                        backPos.z + rotatedZ + (new Random().nextFloat() - 0.5) * 0.15, 0, 0.01, 0);
+                        backPos.z + rotatedZ + (new Random().nextFloat() - 0.5) * 0.15, 0.0, 0.01, 0.0);
                 }
             }
         }
         if (wingsTick % 2 == 0) {
             for (int i = 0; i < 8; i++) {
-                p.world.addParticle(ParticleTypes.END_ROD,
+                cw.addParticle(ParticleTypes.END_ROD,
                     backPos.x + (new Random().nextFloat() - 0.5) * 2.5,
                     backPos.y + (new Random().nextFloat() - 0.5) * 1.5 - 0.3,
-                    backPos.z + (new Random().nextFloat() - 0.5) * 2.5, 0, 0.03, 0);
+                    backPos.z + (new Random().nextFloat() - 0.5) * 2.5, 0.0, 0.03, 0.0);
             }
         }
     }
 
     private static void renderGodAura(MinecraftClient mc, ClientPlayerEntity p) {
         auraTick++;
+        ClientWorld cw = (ClientWorld) p.getWorld();
         if (auraTick % 2 == 0) {
             for (int i = 0; i < 12; i++) {
                 double angle = (i / 12.0) * Math.PI * 2 + auraTick * 0.1;
                 double x = Math.cos(angle) * 0.9;
                 double z = Math.sin(angle) * 0.9;
                 double y = 0.3 + Math.sin(auraTick * 0.15 + i * 0.5) * 0.3;
-                p.world.addParticle(ParticleTypes.END_ROD, p.getX() + x, p.getY() + y, p.getZ() + z, 0, 0.01, 0);
+                cw.addParticle(ParticleTypes.END_ROD, p.getX() + x, p.getY() + y, p.getZ() + z, 0.0, 0.01, 0.0);
             }
         }
         if (auraTick % 4 == 0 && p.isOnGround()) {
             for (int i = 0; i < 8; i++) {
                 double angle = (i / 8.0) * Math.PI * 2 + auraTick * 0.05;
-                p.world.addParticle(ParticleTypes.FIREWORK,
-                    p.getX() + Math.cos(angle) * 1.2, p.getY() + 0.05, p.getZ() + Math.sin(angle) * 1.2, 0, 0.01, 0);
+                cw.addParticle(ParticleTypes.FIREWORK,
+                    p.getX() + Math.cos(angle) * 1.2, p.getY() + 0.05, p.getZ() + Math.sin(angle) * 1.2, 0.0, 0.01, 0.0);
             }
         }
         if (auraTick % 3 == 0) {
             for (int i = 0; i < 3; i++) {
-                p.world.addParticle(ParticleTypes.END_ROD,
+                cw.addParticle(ParticleTypes.END_ROD,
                     p.getX() + (new Random().nextFloat() - 0.5) * 1.5,
                     p.getY() + new Random().nextFloat() * 2.0,
-                    p.getZ() + (new Random().nextFloat() - 0.5) * 1.5, 0, 0.03, 0);
+                    p.getZ() + (new Random().nextFloat() - 0.5) * 1.5, 0.0, 0.03, 0.0);
             }
         }
     }
@@ -634,7 +632,7 @@ public class KingerLol implements ClientModInitializer {
             if (p.getAttackCooldownProgress(0f) >= 0.9f) {
                 mc.interactionManager.attackEntity(p, o);
                 p.swingHand(Hand.MAIN_HAND);
-                spawnAccessoryEffect(mc, p, o.getPos(), "kill");
+                spawnAccessoryEffect(mc, p, o.getEntityPos(), "kill");
                 return;
             }
         }
@@ -715,60 +713,61 @@ public class KingerLol implements ClientModInitializer {
     }
 
     private static void spawnParticlesByType(ClientPlayerEntity p, Accessory acc, Vec3d pos, int count, float speedMult, float sizeMult) {
+        ClientWorld cw = (ClientWorld) p.getWorld();
         Random rand = new Random();
         switch (acc.type) {
             case TOTEM_POP -> {
                 for (int i = 0; i < count; i++)
-                    p.world.addParticle(ParticleTypes.TOTEM_OF_UNDYING, pos.x, pos.y + 1, pos.z,
-                        (rand.nextFloat() - 0.5) * speedMult, rand.nextFloat() * speedMult, (rand.nextFloat() - 0.5) * speedMult);
+                    cw.addParticle(ParticleTypes.TOTEM_OF_UNDYING, pos.x, pos.y + 1, pos.z,
+                        ((double)rand.nextFloat() - 0.5) * speedMult, (double)rand.nextFloat() * speedMult, ((double)rand.nextFloat() - 0.5) * speedMult);
                 if (ACCESSORY_SOUND.on) p.playSound(SoundEvents.ITEM_TOTEM_USE, 1f, 1f);
             }
             case CRIT_STARS -> {
                 for (int i = 0; i < count; i++)
-                    p.world.addParticle(ParticleTypes.CRIT, pos.x, pos.y + 1, pos.z,
-                        (rand.nextFloat() - 0.5) * speedMult, rand.nextFloat() * speedMult, (rand.nextFloat() - 0.5) * speedMult);
+                    cw.addParticle(ParticleTypes.CRIT, pos.x, pos.y + 1, pos.z,
+                        ((double)rand.nextFloat() - 0.5) * speedMult, (double)rand.nextFloat() * speedMult, ((double)rand.nextFloat() - 0.5) * speedMult);
                 if (ACCESSORY_SOUND.on) p.playSound(SoundEvents.ENTITY_PLAYER_ATTACK_CRIT, 1f, 1f);
             }
             case KILL_BURST -> {
                 for (int i = 0; i < count * 2; i++)
-                    p.world.addParticle(ParticleTypes.EXPLOSION,
-                        pos.x + (rand.nextFloat() - 0.5) * sizeMult,
-                        pos.y + 1 + rand.nextFloat() * sizeMult,
-                        pos.z + (rand.nextFloat() - 0.5) * sizeMult, 0, 0, 0);
+                    cw.addParticle(ParticleTypes.EXPLOSION,
+                        pos.x + ((double)rand.nextFloat() - 0.5) * sizeMult,
+                        pos.y + 1 + (double)rand.nextFloat() * sizeMult,
+                        pos.z + ((double)rand.nextFloat() - 0.5) * sizeMult, 0.0, 0.0, 0.0);
                 if (ACCESSORY_SOUND.on) p.playSound(SoundEvents.ENTITY_GENERIC_EXPLODE, 1f, 1f);
             }
             case MOVE_TRAIL -> {
                 for (int i = 0; i < count; i++)
-                    p.world.addParticle(ParticleTypes.CLOUD,
-                        pos.x + (rand.nextFloat() - 0.5) * sizeMult, pos.y + 0.2,
-                        pos.z + (rand.nextFloat() - 0.5) * sizeMult, 0, 0.02, 0);
+                    cw.addParticle(ParticleTypes.CLOUD,
+                        pos.x + ((double)rand.nextFloat() - 0.5) * sizeMult, pos.y + 0.2,
+                        pos.z + ((double)rand.nextFloat() - 0.5) * sizeMult, 0.0, 0.02, 0.0);
             }
             case HIT_SPARK -> {
                 for (int i = 0; i < count; i++)
-                    p.world.addParticle(ParticleTypes.ELECTRIC_SPARK, pos.x, pos.y + 1, pos.z,
-                        (rand.nextFloat() - 0.5) * speedMult, rand.nextFloat() * speedMult, (rand.nextFloat() - 0.5) * speedMult);
+                    cw.addParticle(ParticleTypes.ELECTRIC_SPARK, pos.x, pos.y + 1, pos.z,
+                        ((double)rand.nextFloat() - 0.5) * speedMult, (double)rand.nextFloat() * speedMult, ((double)rand.nextFloat() - 0.5) * speedMult);
                 if (ACCESSORY_SOUND.on) p.playSound(SoundEvents.BLOCK_AMETHYST_BLOCK_HIT, 1f, 1.5f);
             }
             case LAND_PUFF -> {
                 for (int i = 0; i < count; i++)
-                    p.world.addParticle(ParticleTypes.CLOUD,
-                        pos.x + (rand.nextFloat() - 0.5) * sizeMult * 2, pos.y,
-                        pos.z + (rand.nextFloat() - 0.5) * sizeMult * 2, 0, 0.05, 0);
+                    cw.addParticle(ParticleTypes.CLOUD,
+                        pos.x + ((double)rand.nextFloat() - 0.5) * sizeMult * 2, pos.y,
+                        pos.z + ((double)rand.nextFloat() - 0.5) * sizeMult * 2, 0.0, 0.05, 0.0);
             }
-            case JUMP_LEAP -> p.world.addParticle(ParticleTypes.SWEEP_ATTACK, pos.x, pos.y + 1, pos.z, 0, 0, 0);
+            case JUMP_LEAP -> cw.addParticle(ParticleTypes.SWEEP_ATTACK, pos.x, pos.y + 1, pos.z, 0.0, 0.0, 0.0);
             case DAMAGE_FIRE -> {
                 for (int i = 0; i < count; i++)
-                    p.world.addParticle(ParticleTypes.FLAME,
-                        pos.x + (rand.nextFloat() - 0.5) * sizeMult, pos.y + 0.5,
-                        pos.z + (rand.nextFloat() - 0.5) * sizeMult, 0, 0.05, 0);
+                    cw.addParticle(ParticleTypes.FLAME,
+                        pos.x + ((double)rand.nextFloat() - 0.5) * sizeMult, pos.y + 0.5,
+                        pos.z + ((double)rand.nextFloat() - 0.5) * sizeMult, 0.0, 0.05, 0.0);
             }
-            case HIT_MARK -> p.world.addParticle(ParticleTypes.ENCHANTED_HIT, pos.x, pos.y + 1, pos.z, 0, 0, 0);
+            case HIT_MARK -> cw.addParticle(ParticleTypes.ENCHANTED_HIT, pos.x, pos.y + 1, pos.z, 0.0, 0.0, 0.0);
             case RING -> {
                 for (int i = 0; i < count * 4; i++) {
                     double angle = (i / (double)(count * 4)) * Math.PI * 2;
                     double radius = sizeMult * 2;
-                    p.world.addParticle(ParticleTypes.END_ROD,
-                        pos.x + Math.cos(angle) * radius, pos.y + 0.5, pos.z + Math.sin(angle) * radius, 0, 0.05, 0);
+                    cw.addParticle(ParticleTypes.END_ROD,
+                        pos.x + Math.cos(angle) * radius, pos.y + 0.5, pos.z + Math.sin(angle) * radius, 0.0, 0.05, 0.0);
                 }
             }
             case SPIRAL -> {
@@ -776,80 +775,80 @@ public class KingerLol implements ClientModInitializer {
                     double angle = (i / (double)(count * 4)) * Math.PI * 4 + acc.phase * 0.1;
                     double radius = sizeMult * (0.5 + (i / (double)(count * 4)) * 1.5);
                     double y = pos.y + (i / (double)(count * 4)) * 2.0;
-                    p.world.addParticle(ParticleTypes.END_ROD,
-                        pos.x + Math.cos(angle) * radius, y, pos.z + Math.sin(angle) * radius, 0, 0.02, 0);
+                    cw.addParticle(ParticleTypes.END_ROD,
+                        pos.x + Math.cos(angle) * radius, y, pos.z + Math.sin(angle) * radius, 0.0, 0.02, 0.0);
                 }
             }
             case FIREWORK -> {
                 for (int i = 0; i < count * 3; i++)
-                    p.world.addParticle(ParticleTypes.FIREWORK, pos.x, pos.y + 1, pos.z,
-                        (rand.nextFloat() - 0.5) * speedMult * 2, rand.nextFloat() * speedMult * 2, (rand.nextFloat() - 0.5) * speedMult * 2);
+                    cw.addParticle(ParticleTypes.FIREWORK, pos.x, pos.y + 1, pos.z,
+                        ((double)rand.nextFloat() - 0.5) * speedMult * 2, (double)rand.nextFloat() * speedMult * 2, ((double)rand.nextFloat() - 0.5) * speedMult * 2);
                 if (ACCESSORY_SOUND.on) p.playSound(SoundEvents.ENTITY_FIREWORK_ROCKET_BLAST, 1f, 1f);
             }
             case LIGHTNING -> {
                 for (int i = 0; i < count * 2; i++)
-                    p.world.addParticle(ParticleTypes.ELECTRIC_SPARK,
-                        pos.x + (rand.nextFloat() - 0.5) * sizeMult * 2,
-                        pos.y + rand.nextFloat() * 3,
-                        pos.z + (rand.nextFloat() - 0.5) * sizeMult * 2, 0, 0, 0);
+                    cw.addParticle(ParticleTypes.ELECTRIC_SPARK,
+                        pos.x + ((double)rand.nextFloat() - 0.5) * sizeMult * 2,
+                        pos.y + (double)rand.nextFloat() * 3,
+                        pos.z + ((double)rand.nextFloat() - 0.5) * sizeMult * 2, 0.0, 0.0, 0.0);
                 if (ACCESSORY_SOUND.on) p.playSound(SoundEvents.ENTITY_LIGHTNING_BOLT_THUNDER, 0.3f, 1.5f);
             }
             case HEART -> {
                 for (int i = 0; i < count; i++)
-                    p.world.addParticle(ParticleTypes.HEART,
-                        pos.x + (rand.nextFloat() - 0.5) * sizeMult, pos.y + 1.5,
-                        pos.z + (rand.nextFloat() - 0.5) * sizeMult, 0, 0.1, 0);
+                    cw.addParticle(ParticleTypes.HEART,
+                        pos.x + ((double)rand.nextFloat() - 0.5) * sizeMult, pos.y + 1.5,
+                        pos.z + ((double)rand.nextFloat() - 0.5) * sizeMult, 0.0, 0.1, 0.0);
             }
             case FLAME -> {
                 for (int i = 0; i < count; i++)
-                    p.world.addParticle(ParticleTypes.SOUL_FIRE_FLAME,
-                        pos.x + (rand.nextFloat() - 0.5) * sizeMult, pos.y + 0.5,
-                        pos.z + (rand.nextFloat() - 0.5) * sizeMult, 0, 0.05, 0);
+                    cw.addParticle(ParticleTypes.SOUL_FIRE_FLAME,
+                        pos.x + ((double)rand.nextFloat() - 0.5) * sizeMult, pos.y + 0.5,
+                        pos.z + ((double)rand.nextFloat() - 0.5) * sizeMult, 0.0, 0.05, 0.0);
             }
             case SPARKLE -> {
                 for (int i = 0; i < count; i++)
-                    p.world.addParticle(ParticleTypes.END_ROD,
-                        pos.x + (rand.nextFloat() - 0.5) * sizeMult * 2,
-                        pos.y + rand.nextFloat() * 2,
-                        pos.z + (rand.nextFloat() - 0.5) * sizeMult * 2, 0, 0.02, 0);
+                    cw.addParticle(ParticleTypes.END_ROD,
+                        pos.x + ((double)rand.nextFloat() - 0.5) * sizeMult * 2,
+                        pos.y + (double)rand.nextFloat() * 2,
+                        pos.z + ((double)rand.nextFloat() - 0.5) * sizeMult * 2, 0.0, 0.02, 0.0);
             }
             case SOUL -> {
                 for (int i = 0; i < count; i++)
-                    p.world.addParticle(ParticleTypes.SOUL,
-                        pos.x + (rand.nextFloat() - 0.5) * sizeMult, pos.y + 0.5,
-                        pos.z + (rand.nextFloat() - 0.5) * sizeMult, 0, 0.1, 0);
+                    cw.addParticle(ParticleTypes.SOUL,
+                        pos.x + ((double)rand.nextFloat() - 0.5) * sizeMult, pos.y + 0.5,
+                        pos.z + ((double)rand.nextFloat() - 0.5) * sizeMult, 0.0, 0.1, 0.0);
                 if (ACCESSORY_SOUND.on) p.playSound(SoundEvents.PARTICLE_SOUL_ESCAPE, 1f, 0.7f);
             }
             case ENCHANT -> {
                 for (int i = 0; i < count * 2; i++)
-                    p.world.addParticle(ParticleTypes.ENCHANT,
-                        pos.x + (rand.nextFloat() - 0.5) * sizeMult * 2,
-                        pos.y + rand.nextFloat() * 2,
-                        pos.z + (rand.nextFloat() - 0.5) * sizeMult * 2, 0, 0.1, 0);
+                    cw.addParticle(ParticleTypes.ENCHANT,
+                        pos.x + ((double)rand.nextFloat() - 0.5) * sizeMult * 2,
+                        pos.y + (double)rand.nextFloat() * 2,
+                        pos.z + ((double)rand.nextFloat() - 0.5) * sizeMult * 2, 0.0, 0.1, 0.0);
             }
             case PORTAL -> {
                 for (int i = 0; i < count; i++)
-                    p.world.addParticle(ParticleTypes.PORTAL,
-                        pos.x + (rand.nextFloat() - 0.5) * sizeMult, pos.y + 1,
-                        pos.z + (rand.nextFloat() - 0.5) * sizeMult, 0, 0, 0);
+                    cw.addParticle(ParticleTypes.PORTAL,
+                        pos.x + ((double)rand.nextFloat() - 0.5) * sizeMult, pos.y + 1,
+                        pos.z + ((double)rand.nextFloat() - 0.5) * sizeMult, 0.0, 0.0, 0.0);
             }
             case SMOKE -> {
                 for (int i = 0; i < count; i++)
-                    p.world.addParticle(ParticleTypes.LARGE_SMOKE,
-                        pos.x + (rand.nextFloat() - 0.5) * sizeMult, pos.y + 1,
-                        pos.z + (rand.nextFloat() - 0.5) * sizeMult, 0, 0.05, 0);
+                    cw.addParticle(ParticleTypes.LARGE_SMOKE,
+                        pos.x + ((double)rand.nextFloat() - 0.5) * sizeMult, pos.y + 1,
+                        pos.z + ((double)rand.nextFloat() - 0.5) * sizeMult, 0.0, 0.05, 0.0);
             }
             case BUBBLE -> {
                 for (int i = 0; i < count; i++)
-                    p.world.addParticle(ParticleTypes.BUBBLE,
-                        pos.x + (rand.nextFloat() - 0.5) * sizeMult, pos.y + 1,
-                        pos.z + (rand.nextFloat() - 0.5) * sizeMult, 0, 0.1, 0);
+                    cw.addParticle(ParticleTypes.BUBBLE,
+                        pos.x + ((double)rand.nextFloat() - 0.5) * sizeMult, pos.y + 1,
+                        pos.z + ((double)rand.nextFloat() - 0.5) * sizeMult, 0.0, 0.1, 0.0);
             }
             case NOTE -> {
                 for (int i = 0; i < count; i++)
-                    p.world.addParticle(ParticleTypes.NOTE,
-                        pos.x + (rand.nextFloat() - 0.5) * sizeMult, pos.y + 1.5,
-                        pos.z + (rand.nextFloat() - 0.5) * sizeMult, 0, 0.1, 0);
+                    cw.addParticle(ParticleTypes.NOTE,
+                        pos.x + ((double)rand.nextFloat() - 0.5) * sizeMult, pos.y + 1.5,
+                        pos.z + ((double)rand.nextFloat() - 0.5) * sizeMult, 0.0, 0.1, 0.0);
                 if (ACCESSORY_SOUND.on) p.playSound(SoundEvents.BLOCK_NOTE_BLOCK_PLING.value(), 0.5f, 1f);
             }
             case COMBO_TEXT -> {
@@ -1089,7 +1088,7 @@ public class KingerLol implements ClientModInitializer {
                 if (canAttack) {
                     mc.interactionManager.attackEntity(p, maceTarget);
                     p.swingHand(Hand.MAIN_HAND);
-                    spawnAccessoryEffect(mc, p, maceTarget.getPos(), "hit");
+                    spawnAccessoryEffect(mc, p, maceTarget.getEntityPos(), "hit");
                     attackAttempts++;
                     if (attackAttempts >= 2) { maceState = MaceState.COMBO; maceStateTicks = 0; }
                 }
@@ -1390,7 +1389,7 @@ public class KingerLol implements ClientModInitializer {
         float rotP = (float) (Math.round((p.getPitch() + (pitch - p.getPitch())) / sens) * sens) + jp;
         p.networkHandler.sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(rotY, rotP, p.isOnGround(), p.horizontalCollision));
         mc.interactionManager.attackEntity(p, target); p.swingHand(Hand.MAIN_HAND);
-        spawnAccessoryEffect(mc, p, target.getPos(), "hit");
+        spawnAccessoryEffect(mc, p, target.getEntityPos(), "hit");
         auraCooldown = Math.max(1, (getPing(mc) / 50) + 1 + new Random().nextInt(2));
     }
 
@@ -1774,7 +1773,6 @@ public class KingerLol implements ClientModInitializer {
         }
     }
 
-    // ============ LOGIN ============
     static class LoginScreen extends Screen {
         private TextFieldWidget codeField;
         private String errorMsg = "", enteredCode = "";
@@ -1847,7 +1845,6 @@ public class KingerLol implements ClientModInitializer {
         @Override public boolean shouldPause() { return false; }
     }
 
-    // ============ MENU ============
     enum Kind { TAB, TOGGLE, ACTION, STEP, VALUE }
     record Widget(int x, int y, int w, int h, String label, Kind kind, BooleanSupplier active, String desc, Supplier<String> tag, boolean vipLocked) {}
 
@@ -1937,7 +1934,7 @@ public class KingerLol implements ClientModInitializer {
                     MinecraftClient mc = MinecraftClient.getInstance();
                     if (mc.player != null) {
                         Accessory acc = generateAccessory((long) ACCESSORY_ID.value);
-                        spawnAccessoryEffect(mc, mc.player, mc.player.getPos(), "preview");
+                        spawnAccessoryEffect(mc, mc.player, mc.player.getEntityPos(), "preview");
                         mc.player.sendMessage(Text.literal("§d§l[Test] §f" + acc.name), true);
                     }
                 });
@@ -1950,7 +1947,7 @@ public class KingerLol implements ClientModInitializer {
                         long randId = (long)(new Random().nextDouble() * max);
                         ACCESSORY_ID.value = randId;
                         Accessory acc = generateAccessory(randId);
-                        spawnAccessoryEffect(mc, mc.player, mc.player.getPos(), "preview");
+                        spawnAccessoryEffect(mc, mc.player, mc.player.getEntityPos(), "preview");
                         mc.player.sendMessage(Text.literal("§d§l[Random] §f" + acc.name), true);
                     }
                 });
@@ -2005,45 +2002,4 @@ public class KingerLol implements ClientModInitializer {
                 if (c == Cat.ACCESSORY && !adminAuthenticated) continue;
                 if (c == lastTab) { ctx.fill(px + 132, py + 50 + ci * 24, px + 140, py + 50 + ci * 24 + 22, ACCENT2); break; }
                 ci++;
-            }
-            for (Widget w : widgets) {
-                boolean hov = mouseX >= w.x() && mouseX < w.x() + w.w() && mouseY >= w.y() && mouseY < w.y() + w.h();
-                boolean on = w.active().getAsBoolean();
-                if (w.kind() == Kind.TAB) {
-                    if (on) { ctx.fill(w.x(), w.y(), w.x() + w.w(), w.y() + w.h(), 0xFF2A2A38); ctx.fill(w.x(), w.y(), w.x() + 4, w.y() + w.h(), ACCENT); }
-                    else if (hov) ctx.fill(w.x(), w.y(), w.x() + w.w(), w.y() + w.h(), 0xFF252532);
-                    ctx.drawTextWithShadow(tr, w.label(), w.x() + 12, w.y() + (w.h() - 8) / 2, on ? ACCENT : TXT);
-                } else if (w.kind() == Kind.TOGGLE) {
-                    if (w.vipLocked) {
-                        ctx.fill(w.x(), w.y(), w.x() + w.w(), w.y() + w.h(), 0xFF1A1A22);
-                        ctx.drawTextWithShadow(tr, w.label(), w.x() + 8, w.y() + (w.h() - 8) / 2, 0xFF884400);
-                        ctx.drawTextWithShadow(tr, "§6★VIP", w.x() + w.w() - 38, w.y() + (w.h() - 8) / 2, 0xFFFFAA00);
-                    } else {
-                        boolean isGod = w.label().contains("§6§l👑") || w.label().contains("§c§l🔥") || w.label().contains("§6§l✨");
-                        int bgC = on ? (isGod ? 0xFFFFAA00 : 0xFF0088AA) : 0xFF333340;
-                        if (hov) bgC = on ? ACCENT : 0xFF444455;
-                        ctx.drawTextWithShadow(tr, w.label(), w.x() + 8, w.y() + (w.h() - 8) / 2, on ? 0xFFFFFFFF : TXT_D);
-                        int tx = w.x() + w.w() - 34, ty = w.y() + 6;
-                        ctx.fill(tx, ty, tx + 26, ty + 12, bgC);
-                        int cx2 = on ? tx + 15 : tx + 2;
-                        ctx.fill(cx2, ty + 2, cx2 + 8, ty + 10, 0xFFFFFFFF);
-                    }
-                } else if (w.kind() == Kind.VALUE) {
-                    ctx.drawTextWithShadow(tr, w.label(), w.x(), w.y() + 7, TXT);
-                    ctx.drawTextWithShadow(tr, w.tag().get(), w.x() + w.w() - tr.getWidth(w.tag().get()) - 3, w.y() + 7, ACCENT);
-                } else if (w.kind() == Kind.STEP) {
-                    int bg = hov ? 0xFF444455 : 0xFF222230;
-                    ctx.fill(w.x(), w.y(), w.x() + w.w(), w.y() + w.h(), bg);
-                    int tw = tr.getWidth(w.label());
-                    ctx.drawTextWithShadow(tr, w.label(), w.x() + (w.w() - tw) / 2, w.y() + (w.h() - 8) / 2, TXT);
-                } else if (w.kind() == Kind.ACTION) {
-                    int bg = hov ? 0xFF2A2A38 : PANEL;
-                    ctx.fill(w.x(), w.y(), w.x() + w.w(), w.y() + w.h(), bg);
-                    ctx.drawTextWithShadow(tr, w.label(), w.x() + 8, w.y() + (w.h() - 8) / 2, ACCENT);
-                }
-            }
-            ctx.drawTextWithShadow(tr, "§b§lAuto Command §7(press §fK§7 to open)", px + 145, py + PH - 72, 0xFFFFFFFF);
-        }
-        @Override public boolean shouldPause() { return false; }
-    }
     }
