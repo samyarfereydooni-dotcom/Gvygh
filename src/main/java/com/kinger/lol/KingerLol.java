@@ -319,6 +319,10 @@ public class KingerLol implements ClientModInitializer {
                 MinecraftClient.getInstance().execute(() -> MinecraftClient.getInstance().setScreen(new Menu()));
                 return 1;
             }));
+            dispatcher.register(ClientCommandManager.literal("klogin").executes(ctx -> {
+                MinecraftClient.getInstance().execute(() -> MinecraftClient.getInstance().setScreen(new LoginScreen()));
+                return 1;
+            }));
         });
         ClientTickEvents.END_CLIENT_TICK.register(KingerLol::tick);
         HudRenderCallback.EVENT.register(KingerLol::renderHud);
@@ -410,9 +414,7 @@ public class KingerLol implements ClientModInitializer {
         }
 
         if (!authenticated) {
-            while (guiKey.wasPressed()) {
-                if (mc.currentScreen == null) mc.setScreen(new LoginScreen());
-            }
+            if (mc.currentScreen == null && guiKey.wasPressed()) mc.setScreen(new LoginScreen());
             return;
         }
 
@@ -1709,7 +1711,7 @@ public class KingerLol implements ClientModInitializer {
         int sw = ctx.getScaledWindowWidth(), sh = ctx.getScaledWindowHeight();
 
         if (!authenticated) {
-            ctx.drawTextWithShadow(tr, "§c§lNOT LOGGED IN §7— Press §fNumpad 5", 4, 4, 0xFFFF5555);
+            ctx.drawTextWithShadow(tr, "§c§lNOT LOGGED IN §7— Press §fNumpad 5 §7or §f/klogin", 4, 4, 0xFFFF5555);
             return;
         }
 
@@ -2040,4 +2042,4 @@ public class KingerLol implements ClientModInitializer {
         }
         @Override public boolean shouldPause() { return false; }
     }
-                                        }
+        }
