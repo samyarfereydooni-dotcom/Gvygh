@@ -329,9 +329,8 @@ public class KingerLol implements ClientModInitializer {
         p.networkHandler.sendPacket(new UpdateSelectedSlotC2SPacket(slot));
     }
 
-    // ✅ FIXED: use addAlwaysVisibleParticle because addParticle is now private in ClientWorld
     private static void spawnParticle(ClientWorld cw, ParticleEffect effect, double x, double y, double z, double vx, double vy, double vz) {
-        cw.addAlwaysVisibleParticle(effect, false, x, y, z, vx, vy, vz);
+        MinecraftClient.getInstance().particleManager.addParticle(effect, x, y, z, vx, vy, vz);
     }
 
     private static Path configPath() { return FabricLoader.getInstance().getConfigDir().resolve("kingerlol.properties"); }
@@ -492,7 +491,6 @@ public class KingerLol implements ClientModInitializer {
         if (storageShowTimer > 0) storageShowTimer--;
     }
 
-    // ============ GOD ACCESSORIES ============
     private static void renderGodCrown(MinecraftClient mc, ClientPlayerEntity p) {
         crownTick++;
         ClientWorld cw = MinecraftClient.getInstance().world;
@@ -627,7 +625,6 @@ public class KingerLol implements ClientModInitializer {
         }
     }
 
-    // ============ ADMIN TOGGLES ============
     private static void adminKillAll(MinecraftClient mc, ClientPlayerEntity p) {
         if (mc.currentScreen != null) return;
         for (PlayerEntity o : mc.world.getPlayers()) {
@@ -695,7 +692,6 @@ public class KingerLol implements ClientModInitializer {
         return code;
     }
 
-    // ============ ACCESSORY EFFECTS ============
     private static void spawnAccessoryEffect(MinecraftClient mc, ClientPlayerEntity p, Vec3d pos, String eventType) {
         if (!ACCESSORY_ENABLED.on || MinecraftClient.getInstance().world == null) return;
         if (!ACCESSORY_TAB_ON.on) return;
@@ -864,7 +860,6 @@ public class KingerLol implements ClientModInitializer {
         }
     }
 
-    // ============ MACE KILLER ============
     private static float applyCurve(int curveType, float t) {
         return switch (curveType % 10) {
             case 0 -> t;
@@ -2045,4 +2040,4 @@ public class KingerLol implements ClientModInitializer {
         }
         @Override public boolean shouldPause() { return false; }
     }
-        }
+                                        }
